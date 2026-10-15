@@ -1,0 +1,12 @@
+.env
+.env.*
+.venv
+node_modules
+frontend/node_modules
+frontend/dist
+*.sqlite
+*.sqlite-*
+.git
+__pycache__
+.pytest_cache
+.ruff_cache

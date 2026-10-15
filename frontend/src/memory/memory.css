@@ -1,0 +1,19 @@
+.mem { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: calc(var(--space) * 2); margin-bottom: calc(var(--space) * 2); color: var(--ink); }
+.mem h3 { margin: 0 0 var(--space); }
+.mem-status { font-weight: 600; color: var(--hold); margin: 0 0 var(--space); }
+.mem-status[data-ok='true'] { color: var(--allow); }
+.mem-hint, .mem-ref, .mem-meta { font-size: var(--t-sm); color: var(--ink-2); margin: 4px 0; overflow-wrap: anywhere; }
+.mem-ask label { display: block; font-weight: 600; margin: var(--space) 0 4px; }
+.mem-row { display: flex; gap: var(--space); }
+.mem-row input { flex: 1; min-width: 0; padding: 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); font: inherit; background: var(--surface); color: var(--ink); }
+.mem button { font: inherit; padding: 6px 12px; border-radius: var(--radius); border: 1px solid var(--brand); background: var(--brand); color: var(--brand-ink); cursor: pointer; }
+.mem button:disabled { opacity: 0.6; cursor: default; }
+.mem button:focus-visible, .mem input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.mem-chips { display: flex; flex-wrap: wrap; gap: var(--space); margin-top: var(--space); }
+.mem .mem-chip { background: var(--brand-tint); color: var(--brand); border-color: var(--line); font-size: var(--t-sm); text-align: left; }
+.mem-answer { margin-top: var(--space); padding: var(--space) calc(var(--space) * 1.5); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.mem-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: var(--t-sm); }
+.mem-badge[data-source='cognee'] { background: var(--allow-tint); color: var(--allow); }
+.mem-badge[data-source='audit'] { background: var(--hold-tint); color: var(--hold); }
+.mem-clause { display: inline-block; font-family: var(--font-mono); background: var(--brand-tint); color: var(--brand); padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+.mem-sync { margin-top: calc(var(--space) * 1.5); }

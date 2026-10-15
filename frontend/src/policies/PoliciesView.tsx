@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './policies.css'
+import { MemoryPanel } from '../memory/MemoryPanel'
 import { policiesClientFromEnv } from './client'
 import { clauseSentence, evidenceSentence, VERDICT_LABEL } from './clauses'
 import { LibraryDetail, LibraryList } from './Library'
@@ -120,6 +121,7 @@ export function PoliciesView({ client, missionId = 'mission-1', cardId = 'card-1
         <h2 id="pol-h">Policies</h2>
         <p className="pol-lede">Written rules decide every payment. They stack from the organisation down to the single payment, and the strictest result wins.</p>
       </header>
+      <MemoryPanel />
       {c.kind === 'fixture' && <p role="note" className="banner pol-banner">Fixture mode: canned policies, no backend</p>}
       {status === 'ready' && memoryDown && (
         <div role="note" className="pol-memory">
