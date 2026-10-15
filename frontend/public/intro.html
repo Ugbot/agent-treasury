@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Treasury: intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #101a2b; --muted: #4a5a72; --canvas: #eef1f6; --surface: #ffffff; --line: #d3dbe6;
+    --brand: #1b4fd1; --allow: #0a6e43; --hold: #8f5200; --deny: #b42318; --hold-bg: #fbf0dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #e8edf6; --muted: #9db0cc; --canvas: #0a101c; --surface: #121a2a; --line: #26334a;
+            --brand: #8aa8ff; --allow: #4ed08f; --hold: #f2b84b; --deny: #ff8d83; --hold-bg: #2a2110; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--canvas); color: var(--ink);
+         font: 400 clamp(16px, 1.25vw, 20px)/1.5 "IBM Plex Sans", system-ui, sans-serif; }
+  .slide { min-height: 100%; max-width: 1280px; margin: 0 auto; padding: clamp(16px, 2.6vw, 36px) 16px 24px;
+           display: grid; grid-template-rows: auto auto 1fr auto; gap: clamp(14px, 2.2vw, 28px); align-content: center; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .brand { font-weight: 600; letter-spacing: .01em; }
+  .badge { font: 500 .8rem "IBM Plex Mono", monospace; border: 1px solid var(--brand); color: var(--brand);
+           padding: 3px 10px; border-radius: 999px; }
+  h1 { margin: 0; font-weight: 700; font-size: clamp(1.9rem, 4.1vw, 3.4rem); line-height: 1.08; letter-spacing: -.02em; max-width: 26ch; }
+  .lede { margin: 10px 0 0; color: var(--muted); max-width: 62ch; font-size: clamp(1rem, 1.45vw, 1.2rem); }
+
+  /* the loop: a rail that fills once on load */
+  .rail { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; }
+  .stage { position: relative; padding: 0 clamp(8px, 1.4vw, 20px) 0 0; }
+  .node { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); flex: none;
+         animation: lit .5s forwards; animation-delay: calc(var(--i) * .55s + .3s); }
+  .seg { height: 2px; flex: 1; background: var(--line); position: relative; overflow: hidden; }
+  .seg::after { content: ""; position: absolute; inset: 0; background: var(--brand); transform: scaleX(0); transform-origin: left;
+                animation: fill .55s forwards; animation-delay: calc(var(--i) * .55s + .6s); }
+  .stage:last-child .seg { display: none; }
+  @keyframes lit { to { border-color: var(--brand); background: var(--brand); } }
+  @keyframes fill { to { transform: scaleX(1); } }
+  .stage h2 { margin: 0 0 4px; font-size: clamp(1.05rem, 1.6vw, 1.35rem); font-weight: 600; }
+  .stage p { margin: 0; color: var(--muted); font-size: .95em; }
+  .ex { margin-top: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+        font: 400 .82em/1.4 "IBM Plex Mono", monospace; min-height: 4.2em; }
+  .ex b { font-weight: 500; }
+  .hold { color: var(--hold); } .allow { color: var(--allow); } .deny { color: var(--deny); }
+  .verdict { font: 700 1.5rem "IBM Plex Sans", sans-serif; }
+
+  .points { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 3vw, 40px); border-top: 1px solid var(--line); padding-top: 16px; }
+  .points h3 { margin: 0 0 4px; font-size: 1.08rem; }
+  .points p { margin: 0; color: var(--muted); font-size: .96em; }
+  .foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: .9rem; }
+  .go { display: inline-block; background: var(--brand); color: #fff; padding: 12px 22px; border-radius: 8px; font-weight: 600; text-decoration: none; }
+  @media (prefers-color-scheme: dark) { .go { color: #0a101c; } }
+  .go:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  @media (max-width: 860px) {
+    .rail { grid-template-columns: 1fr; gap: 18px; }
+    .seg { display: none; } .stage { padding: 0; }
+    .points { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { .dot, .seg::after { animation: none; } .dot { border-color: var(--brand); background: var(--brand); } .seg::after { transform: none; } }
+</style>
+</head>
+<body>
+<main class="slide">
+  <div class="top">
+    <span class="brand">Agent Treasury</span>
+    <span class="badge">Stripe test mode</span>
+  </div>
+
+  <header>
+    <h1>An agent that spends money, and can explain every dollar.</h1>
+    <p class="lede">Written policies decide what an AI agent may pay. The agent proposes, the policies allow, hold or deny, and only then does money move.</p>
+  </header>
+
+  <section aria-label="How a payment is decided">
+    <div class="rail">
+      <div class="stage" style="--i:0">
+        <div class="node"><span class="dot"></span><span class="seg"></span></div>
+        <h2>Inputs change</h2><p>Amount, coverage, location, receipt, cancellation.</p>
+        <div class="ex">Delivery arrived.<br><b>Receipt not confirmed.</b></div>
+      </div>
+      <div class="stage" style="--i:1">
+        <div class="node"><span class="dot"></span><span class="seg"></span></div>
+        <h2>Policies chain</h2><p>Organisation rules, then job and card policies. The strictest wins.</p>
+        <div class="ex">org-base v1<br>+ approved payees<br>+ velocity limit</div>
+      </div>
+      <div class="stage" style="--i:2">
+        <div class="node"><span class="dot"></span><span class="seg"></span></div>
+        <h2>Policy decides</h2><p>Allow, hold or deny, naming the rule.</p>
+        <div class="ex"><span class="verdict hold">Hold</span><br>PAY-1 needs delivery proof</div>
+      </div>
+      <div class="stage" style="--i:3">
+        <div class="node"><span class="dot"></span><span class="seg"></span></div>
+        <h2>Money moves</h2><p>Real Stripe test charges, transfers and refunds.</p>
+        <div class="ex"><span class="allow">$70.00 to merchant</span><br>$20.00 to driver</div>
+      </div>
+      <div class="stage" style="--i:4">
+        <div class="node"><span class="dot"></span></div>
+        <h2>Every dollar explained</h2><p>The rule, the policy version, the evidence.</p>
+        <div class="ex">Paid under <b>PAY-1</b>, org-base v1, receipt confirmed at 14:02</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="points" aria-label="What makes it different">
+    <div><h3>The agent can't talk its way past a rule</h3><p>It proposes; a deterministic policy engine decides. Rules can only get stricter as they chain.</p></div>
+    <div><h3>Failures are safe</h3><p>Every payment is one operation with one provider object. A crash or a retry never pays twice.</p></div>
+    <div><h3>Memory you can audit</h3><p>A tamper-evident log, policy memory in Cognee, and a replay of what the policy was at the time.</p></div>
+  </section>
+
+  <div class="foot">
+    <span>Briefcase x Stripe hackathon, Track 01: Agents that spend. Amounts and times above are an illustrative example.</span>
+    <a class="go" href="/" id="start">Start the demo</a>
+  </div>
+</main>
+<script>
+  // Keyboard: Enter or Right arrow starts the demo.
+  addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === 'ArrowRight') location.href = '/'; });
+</script>
+</body>
+</html>
