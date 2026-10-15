@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -75,6 +76,15 @@ class OverrideIn(BaseModel):
     policy_hash: str
 
 
+_ORG_LOCKS: dict[str, threading.RLock] = {}
+_ORG_LOCKS_GUARD = threading.Lock()
+
+
+def _org_lock(org: str) -> threading.RLock:
+    with _ORG_LOCKS_GUARD:
+        return _ORG_LOCKS.setdefault(org, threading.RLock())
+
+
 def create_app(ledger: Ledger | None = None, gateway=None, use_workflows: bool | None = None) -> FastAPI:
     """gateway: mock by default, Stripe test mode when STRIPE_SECRET_KEY is set.
     use_workflows: run payments through the DBOS workflow (default on when the app owns its ledger)."""
@@ -128,6 +138,12 @@ def create_app(ledger: Ledger | None = None, gateway=None, use_workflows: bool |
         workflows.runtime().decider = engine.decide  # workflow decide step uses the same registry-backed engine
 
     def decide(mission_id: str) -> dict:
+        # Velocity is a count of prior payments: decide -> pay -> audit('payment') must be atomic per org,
+        # and the decision is (re)made inside the lock so the count includes concurrent payments.
+        with _org_lock("org"):
+            return _decide_locked(mission_id)
+
+    def _decide_locked(mission_id: str) -> dict:
         try:
             body = engine.decide(mission_id)
         except KeyError:
@@ -149,7 +165,7 @@ def create_app(ledger: Ledger | None = None, gateway=None, use_workflows: bool |
                 led.audit_note(mission_id, "system", f"payment {op} created ({gw.mode})",
                                {"operation_id": op, "amount_minor": m["amount_minor"],
                                 "currency": m["currency"].lower(), "policy_hash": body["policy_hash"]},
-                               kind="payment", mode=gw.mode,
+                               kind="payment", mode=gw.mode, party=m["recipient"] or None,
                                stripe={"ids": [r.provider_ref], "livemode": False, "op": op})
             _lock_if_paid(mission_id)
         return body

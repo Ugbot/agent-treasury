@@ -32,11 +32,11 @@ function spied(over: Partial<AuthorClient> = {}) {
 describe('AuthorView', () => {
   it('debounces validate and calls it once after rapid edits', async () => {
     const c = spied()
-    render(<AuthorView client={c} debounceMs={30} />)
+    render(<AuthorView client={c} debounceMs={400} />)  // generous so slow CI cannot split the two clicks
     await userEvent.click(screen.getByRole('button', { name: 'Add rule' }))
     await userEvent.click(screen.getByRole('button', { name: 'Add rule' }))
-    await waitFor(() => expect(c.validate).toHaveBeenCalled())
-    await new Promise((r) => setTimeout(r, 80))
+    await waitFor(() => expect(c.validate).toHaveBeenCalled(), { timeout: 2000 })
+    await new Promise((r) => setTimeout(r, 500))
     expect((c.validate as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
   })
 

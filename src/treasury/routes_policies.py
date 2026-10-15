@@ -1,7 +1,7 @@
 """Policy bundle / attachment / effective-decision routes. Integrator mounts `router`."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from .policies import (
@@ -14,6 +14,7 @@ from .policies import (
     default_registry,
 )
 from .policy import Clause
+from .routes_console import actor_from
 
 router = APIRouter(prefix="/policies", tags=["policies"])
 _registry: PolicyRegistry | None = None
@@ -29,6 +30,16 @@ def get_registry() -> PolicyRegistry:
 def set_registry(reg: PolicyRegistry | None) -> None:
     global _registry
     _registry = reg
+
+
+def _require_approver(request: Request, what: str) -> None:
+    from .decision import APPROVER_ROLES
+    if actor_from(request).role not in APPROVER_ROLES:
+        raise HTTPException(403, f"approver role required (X-Actor-Role: approver) to {what}")
+
+
+def _org_policy_ids(reg: PolicyRegistry) -> set[str]:
+    return {a.policy_id for a in reg.attachments_for("organisation", "org")}
 
 
 def _http(exc: PolicyError) -> HTTPException:
@@ -114,7 +125,9 @@ def list_policies():
 
 
 @router.post("/{policy_id}/versions", status_code=201)
-def publish(policy_id: str, body: PublishIn):
+def publish(policy_id: str, body: PublishIn, request: Request):
+    if policy_id in _org_policy_ids(get_registry()):
+        _require_approver(request, f"publish a new version of mandatory organisation policy {policy_id}")
     try:
         return get_registry().publish(policy_id, body.title, _clauses(body.clauses), body.expected_version).to_dict()
     except PolicyError as e:
@@ -130,7 +143,9 @@ def get_policy(policy_id: str, version: int | None = None):
 
 
 @router.post("/attachments", status_code=201)
-def attach(body: AttachIn):
+def attach(body: AttachIn, request: Request):
+    if body.target_type == "organisation" or body.mandatory:
+        _require_approver(request, "attach a policy to the organisation")
     try:
         reg = get_registry()
         a = reg.attach(body.target_type, body.target_id, body.policy_id, body.policy_version,
@@ -141,7 +156,10 @@ def attach(body: AttachIn):
 
 
 @router.delete("/attachments/{attachment_id}")
-def detach(attachment_id: str, expected_version: int):
+def detach(attachment_id: str, expected_version: int, request: Request):
+    reg0 = get_registry()
+    if any(a.attachment_id == attachment_id for a in reg0.attachments_for("organisation", "org")):
+        _require_approver(request, "detach an organisation policy")
     try:
         return {"target_version": get_registry().detach(attachment_id, expected_version)}
     except PolicyError as e:

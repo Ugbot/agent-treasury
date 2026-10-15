@@ -30,7 +30,7 @@ APPROVER_ROLES = frozenset({"approver"})
 SERVER_OWNED = frozenset({
     "receipt_confirmed", "receipt_proof", "location", "prohibited_zone", "zone", "zones_entered",
     "currency", "amount_minor", "attached_policy", "last_approval", "last_override",
-    "recipient", "merchant_category", "payment_times", "now",
+    "recipient", "merchant_category", "payment_times", "now", "category_required",
 })
 # Client attestations with a strict type.
 BOOL_KEYS = frozenset({"insured"})
@@ -123,7 +123,8 @@ def server_facts(audit, mission_id: str | None, recipient: str | None, category:
     payment_times are epoch seconds of confirmed payments (audit kind 'payment') other than this mission's."""
     import time
     from datetime import datetime
-    out: dict = {"now": int(now if now is not None else time.time())}
+    out: dict = {"now": float(now if now is not None else time.time()),
+                 "category_required": bool(category)}
     if recipient:
         out["recipient"] = recipient
     if category:
@@ -432,7 +433,7 @@ class DecisionEngine:
                 "system", "decision",
                 f"decision {body['verdict']} at revision {body['input_revision']} under "
                 f"{body['policy_id']} ({body['policy_hash']})",
-                mission_id=mission_id, mode=body["mode"],
+                mission_id=mission_id, mode=body["mode"], party="sender",
                 policy={"id": body["policy_id"], "version": body["policy_version"], "hash": body["policy_hash"],
                         "verdict": body["verdict"], "clauses": body["results"]},
                 payload={"revision": body["input_revision"], "facts": body["facts"],

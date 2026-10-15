@@ -331,9 +331,12 @@ class FuelService:
             r.append("merchant_category_not_permitted")
         try:
             from .decision import clause_reasons, server_facts
-            if self.registry is not None:
-                facts = server_facts(self.audit, None, merchant_id, category)
-                r.extend(x for x in clause_reasons(self.registry, facts) if x not in r)
+            from .routes_policies import (
+                get_registry,  # the app's registry when the service was built without one
+            )
+            reg = self.registry if self.registry is not None else get_registry()
+            facts = server_facts(self.audit, None, merchant_id, category)
+            r.extend(x for x in clause_reasons(reg, facts) if x not in r)
         except Exception:  # noqa: BLE001  # a clause evaluation fault must not silently approve
             r.append("policy_clause_error")
         if country.upper() not in p.countries:

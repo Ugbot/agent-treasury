@@ -31,7 +31,8 @@ def seed_freeze(reg: PolicyRegistry) -> None:
 
 def _state(reg: PolicyRegistry, audit) -> dict:
     seed_freeze(reg)
-    b = reg.get(FREEZE_ID)
+    att = [a for a in reg.attachments_for("organisation", "org") if a.policy_id == FREEZE_ID]
+    b = reg.get(FREEZE_ID, att[0].policy_version) if att else reg.get(FREEZE_ID)
     active = bool(b.clauses[0].params["active"])
     since = by = reason = None
     if audit is not None:
@@ -77,6 +78,6 @@ async def set_freeze(request: Request):
     if audit is not None:
         audit.append(actor.id, "policy.freeze",
                      f"payments {'frozen' if b['active'] else 'unfrozen'} by {actor.id}: {b['reason'].strip()}",
-                     party="org", payload={"active": b["active"], "reason": b["reason"].strip(),
+                     mission_id="org", party="org", payload={"active": b["active"], "reason": b["reason"].strip(),
                                            "role": actor.role})
     return ok(_state(reg, audit))

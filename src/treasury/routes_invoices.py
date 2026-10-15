@@ -14,6 +14,7 @@ from .invoices import (
     InvoiceService,
     MockInvoiceProvider,
     NotFunded,
+    PaymentsFrozen,
     SignatureError,
     StripeInvoiceProvider,
 )
@@ -97,10 +98,15 @@ def poll(obligation_id: str):
 
 
 @router.post("/{obligation_id}/sandbox-pay")
-def sandbox_pay(obligation_id: str):
+def sandbox_pay(obligation_id: str, request: Request):
     """TEST helper: Stripe pays the invoice; result reflects verified provider state."""
     try:
-        return get_service().sandbox_pay(obligation_id).public()
+        svc = get_service()
+        if svc.audit is None:
+            svc.audit = getattr(request.app.state, "audit", None)
+        return svc.sandbox_pay(obligation_id).public()
+    except PaymentsFrozen as e:
+        raise HTTPException(409, str(e))
     except InvoiceError as e:
         raise HTTPException(404, str(e))
     except CapabilityUnavailable as e:

@@ -270,6 +270,10 @@ class RefundService:
                     "currency": den["currency"], "allowed": den["allowed"],
                     "currency_policy_id": den["policy_id"],
                     "currency_policy_version": den["policy_version"], "detail": den["reason"]}
+        frozen = self._frozen(order.order_id)
+        if frozen:
+            return {**out("hold", "payments are frozen", clause=frozen[0].split(":", 1)[-1]),
+                    "detail": frozen}
         if order.refunded_minor > 0 and remaining == 0:
             return out("hold", "already_refunded", clause="MONEY-1")
         if order.outcome_uncertain:
@@ -298,6 +302,19 @@ class RefundService:
                     "recovery_policy_id": rp["id"], "recovery_policy_version": rp["version"],
                     "recovery_policy_hash": rp["hash"]}
         return out("allow", "canceled_before_pickup_no_transfers", remaining)
+
+    def _frozen(self, order_id: str) -> list[str]:
+        """Payment-freeze clauses of the mandatory org policies (a refund is money out)."""
+        from .decision import clause_reasons, server_facts
+        from .routes_policies import get_registry
+        rs = [x for x in clause_reasons(self.registry or get_registry(),
+                                        server_facts(self.audit, order_id, None, None))
+              if x.startswith("payments_frozen")]
+        if rs and self.audit is not None:
+            self.audit.append("system", "refund.decision", "refund held: payments are frozen",
+                              mission_id=order_id, party=self._party(order_id),
+                              payload={"outcome": "held", "reasons": rs})
+        return rs
 
     # --- main entry -------------------------------------------------------
     def request_refund(self, order_id: str, cancel_event_id: str, cancel_evidence: dict | None = None,

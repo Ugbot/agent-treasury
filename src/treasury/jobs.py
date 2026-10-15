@@ -73,9 +73,9 @@ class JobIn(BaseModel):
 TEMPLATES: dict[str, dict] = {
     "tpl-approved-payees": {
         "title": "Approved payees only",
-        "summary": "Only the listed payees and merchant categories can be paid; anyone else is denied.",
-        "clauses": [Clause("PAYEE-1", "Only pay approved payees and merchant categories",
-                           "allowed_counterparties", {"recipients": ["driver_ann"], "categories": ["fuel"]})],
+        "summary": "Only the listed payees can be paid; anyone else is denied.",
+        "clauses": [Clause("PAYEE-1", "Only pay approved payees",
+                           "allowed_counterparties", {"recipients": ["driver_ann"]})],
     },
     "tpl-fuel-meal": {
         "title": "Fuel and meal allowance",

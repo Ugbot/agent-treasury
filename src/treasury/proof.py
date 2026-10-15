@@ -405,6 +405,13 @@ class SettlementService:
         return st.to_dict() if st else {"order_id": order_id, "status": "held", "proven": False,
                                          "legs": {}, "atomic": False, "bank_payout": False}
 
+    def _clause_block(self, o: Order, leg: Leg) -> list[str]:
+        """Freeze / counterparty / velocity clauses of the mandatory org policies, per leg."""
+        from .decision import clause_reasons, server_facts
+        from .routes_policies import get_registry
+        reg = self.registry or get_registry()
+        return clause_reasons(reg, server_facts(self.audit, o.id, leg.destination, None))
+
     def _run_legs(self, o: Order, st: Settlement) -> None:
         den = currency_denial(o.currency, self.registry)
         for name, leg in st.legs.items():
@@ -419,6 +426,13 @@ class SettlementService:
                 leg.status, leg.error = "failed", den["reason"]
                 self._audit("delivery.leg", f"{name} leg denied by {den['clause']}", o.id,
                             party=name, operation_id=leg.operation_id, outcome="denied", **den)
+                continue
+            blocked = self._clause_block(o, leg)
+            if blocked:
+                leg.status, leg.error = "failed", "; ".join(blocked)
+                self._audit("delivery.leg", f"{name} leg blocked by {blocked[0]}", o.id, party=name,
+                            operation_id=leg.operation_id, outcome="held", reasons=blocked,
+                            clause=blocked[0].split(":", 1)[-1])
                 continue
             if leg.amount_minor > self.auto_limit_minor and not self._approved(o, name):
                 leg.status = "awaiting_approval"

@@ -8,6 +8,7 @@ from __future__ import annotations
 import html
 import io
 import json
+import re
 import zipfile
 
 from .audit import AuditLog, redact
@@ -24,9 +25,29 @@ def _e(x) -> str:
     return html.escape(str(x if x is not None else ""))
 
 
+EVIDENCE_PREFIXES = ("decision", "agent.verdict", "delivery.proof", "settle.", "refund", "fuel.")
+_STRIPE_RE = re.compile(r"\b(?:pi|ch|tr|po|re|in|iauth|ic|ipi)_[A-Za-z0-9_]+")
+
+
+def _is_evidence(kind: str) -> bool:
+    return any(kind == p or kind.startswith(p) for p in EVIDENCE_PREFIXES)
+
+
+def _stripe_ids(entries) -> list[str]:
+    ids: set[str] = set()
+    for e in entries:
+        ids.update((e.get("stripe") or {}).get("ids") or [])
+        ids.update(_STRIPE_RE.findall(json.dumps(e.get("payload") or {}, default=str)))
+    return sorted(ids)
+
+
 def build_pack(audit: AuditLog, mission: str) -> bytes:
     entries = redact(audit.query(mission_id=mission, limit=1_000_000))
-    decisions = [e for e in entries if e["kind"] == "decision"]
+    if mission != "org":
+        freezes = [e for e in redact(audit.query(mission_id="org", limit=1_000_000))
+                   if str(e["kind"]).startswith("policy.freeze")]
+        entries = sorted(entries + freezes, key=lambda e: e["seq"])
+    decisions = [e for e in entries if _is_evidence(e["kind"])]
     tl = PolicyTimeline(audit)
     policies = []
     for d in decisions:
@@ -42,7 +63,7 @@ def build_pack(audit: AuditLog, mission: str) -> bytes:
                 bd = b.to_dict() if hasattr(b, "to_dict") else b
                 pol.append({"policy_id": bd.get("policy_id"), "version": bd.get("version"),
                             "content_hash": bd.get("content_hash"), "clauses": bd.get("clauses")})
-        policies.append({"decision_seq": d["seq"], "in_force": hashes.get("id"),
+        policies.append({"decision_seq": d["seq"], "kind": d["kind"], "in_force": hashes.get("id"),
                          "version": hashes.get("version"), "effective_hash": hashes.get("hash"),
                          "bundles_known_then": pol})
     ver = audit.verify()
@@ -52,7 +73,7 @@ def build_pack(audit: AuditLog, mission: str) -> bytes:
                          "where row = {ts,actor,party,mission_id,kind,summary,payload,policy,stripe,mode"
                          "[,valid_at][,supersedes]} with sorted keys and (',',':') separators, genesis prev_hash = 64 zeros. "
                          "Or call GET /api/audit/verify?expected_head=<head>&expected_count=<entries>."}
-    stripe_ids = sorted({i for e in entries for i in ((e.get("stripe") or {}).get("ids") or [])})
+    stripe_ids = _stripe_ids(entries)
     report = _report(mission, entries, decisions, policies, chain, stripe_ids)
     ndjson = "".join(json.dumps(e, sort_keys=True, default=str) + "\n" for e in entries)
     readme = (f"Audit pack for mission {mission}\n\nreport.html  printable finance report\n"
@@ -80,7 +101,8 @@ def _report(mission, entries, decisions, policies, chain, stripe_ids) -> str:
          f"<h1>Audit report: mission {_e(mission)}</h1>"]
     modes = sorted({str(e.get("mode")) for e in entries if e.get("mode")})
     label = ", ".join("STRIPE TEST" if m == "stripe_test" else "MOCK" if m == "mock" else m.upper() for m in modes)
-    pays = [e for e in entries if e["kind"] in ("stripe.call", "payment", "saga.step") and e.get("stripe")]
+    pays = [e for e in entries if (e.get("stripe") or _stripe_ids([e])) and
+            (e["kind"] in ("stripe.call", "payment", "saga.step") or _is_evidence(e["kind"]))]
     o.append(f"<h2>Summary</h2><p>{len(entries)} audit entries, {len(decisions)} decisions, "
              f"{len(stripe_ids)} Stripe object ids. Mode: {_e(label or 'n/a')}. "
              f"Chain integrity: <b>{'VERIFIED' if chain['verify'].get('ok') else 'BROKEN'}</b>.</p>")
@@ -104,7 +126,7 @@ def _report(mission, entries, decisions, policies, chain, stripe_ids) -> str:
     for e in pays:
         m = e.get("mode")
         o.append(f"<tr><td>{e['seq']}</td><td>{'STRIPE TEST' if m == 'stripe_test' else 'MOCK' if m == 'mock' else _e(m)}</td>"
-                 f"<td>{_e(', '.join((e['stripe'] or {}).get('ids') or []))}</td><td>{_e(e['summary'])}</td></tr>")
+                 f"<td>{_e(', '.join(_stripe_ids([e])))}</td><td>{_e(e['summary'])}</td></tr>")
     o.append(f"</table><p>All Stripe object ids: {_e(', '.join(stripe_ids) or 'none')}</p>")
     o.append("<h2>Approvals</h2><ul>")
     for e in entries:

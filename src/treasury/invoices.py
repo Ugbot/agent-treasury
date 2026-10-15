@@ -259,11 +259,17 @@ def _phase(status: str, expected: int, paid: int, currency_ok: bool, ref: str) -
     return "awaiting_payment", False
 
 
+class PaymentsFrozen(InvoiceError):
+    """Payments are frozen by org policy; the invoice stays unpaid."""
+
+
 @dataclass
 class InvoiceService:
     provider: InvoiceProvider
     db_path: str = ":memory:"
     webhook_secret: str | None = None
+    registry: Any = None   # PolicyRegistry; None -> the shared routes_policies registry
+    audit: Any = None
     _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
     _db: sqlite3.Connection = field(init=False, repr=False)
 
@@ -398,11 +404,25 @@ class InvoiceService:
         out = self._apply(s.provider_ref, self.provider.retrieve_invoice(s.provider_ref))
         return out or s
 
+    def _guard_frozen(self, obligation_id: str, s: InvoiceState) -> None:
+        from .decision import clause_reasons, server_facts
+        from .routes_policies import get_registry
+        rs = [x for x in clause_reasons(self.registry or get_registry(),
+                                        server_facts(self.audit, obligation_id, None, None))
+              if x.startswith("payments_frozen")]
+        if rs:
+            if self.audit is not None:
+                self.audit.append("system", "invoice.pay", "invoice payment held: payments are frozen",
+                                  mission_id=obligation_id, party=s.provider_ref,
+                                  payload={"outcome": "held", "reasons": rs})
+            raise PaymentsFrozen("payments are frozen")
+
     def sandbox_pay(self, obligation_id: str) -> InvoiceState:
         """TEST helper: have the provider pay, then wait on verified provider state."""
         s = self.get(obligation_id)
         if s is None:
             raise InvoiceError(f"no invoice for obligation {obligation_id}")
+        self._guard_frozen(obligation_id, s)
         if s.mode == "stripe_test" or s.mode == "mock":
             self.provider.sandbox_pay(s.provider_ref)
         return self.poll(obligation_id)

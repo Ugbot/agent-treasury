@@ -4,6 +4,7 @@ Mount: app.include_router(routes_pack.router) (and under /api), like routes_audi
 """
 from __future__ import annotations
 
+import contextlib
 import re
 
 from fastapi import APIRouter, Request
@@ -26,6 +27,12 @@ def audit_pack(request: Request, mission: str = ""):
     if not mission:
         return _err(400, "mission_required", "pass ?mission=<id>")
     log = get_audit(request.app.state)
+    if not log.query(mission_id=mission, limit=1):
+        from .routes_explain import (
+            _resolve_mission,  # a payment/operation id resolves to its mission
+        )
+        with contextlib.suppress(Exception):
+            mission = _resolve_mission(request, log, mission)
     if not log.query(mission_id=mission, limit=1):
         return _err(404, "not_found", f"no audit entries for mission {mission}")
     log.append("approver" if caller.role == "approver" else "system", "audit.pack",

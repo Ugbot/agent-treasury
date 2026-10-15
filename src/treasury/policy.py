@@ -50,6 +50,8 @@ def _check_counterparties(params: dict, inputs: dict) -> tuple[str, dict]:
         allowed = params.get(field_) or []
         if not allowed:
             continue
+        if key == "merchant_category" and inputs.get("category_required") is False:
+            continue  # payment path supplies no merchant category (mission payments): recipient-only check
         v = str(inputs.get(key) or "").strip().lower()
         if not v:
             return "hold", {"missing": key}

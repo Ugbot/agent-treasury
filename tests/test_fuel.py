@@ -293,3 +293,27 @@ def test_fuel_foreign_currency_denied_live(monkeypatch):
     svc2.update_job("j2", status="active", driver_id="d1", assignment_version=1)
     with pytest.raises(ValueError, match="CURRENCY-1"):
         svc2.issue("j2", "d1", 1)
+
+
+def test_fuel_attempt_declined_while_frozen_then_approved(monkeypatch):
+    from treasury import routes_freeze, routes_policies
+    from treasury.policies import default_registry
+
+    routes_policies.set_registry(default_registry())
+    try:
+        svc, e = make()
+        routes_fuel.set_service(svc)
+        app = FastAPI()
+        app.include_router(routes_fuel.router)
+        app.include_router(routes_freeze.router)
+        c = TestClient(app)
+        appr = {"X-Actor-Role": "approver", "X-Actor-Id": "ann"}
+        body = {"amount_minor": 300, "category": "5541", "country": "GB", "merchant_id": "shell"}
+        url = f"/fuel/entitlements/{e.entitlement_id}/attempts"
+        assert c.post("/freeze", json={"active": True, "reason": "audit"}, headers=appr).status_code == 200
+        r = c.post(url, json=body).json()
+        assert r["approved"] is False and any("FREEZE" in x or "frozen" in x for x in r["reasons"])
+        assert c.post("/freeze", json={"active": False, "reason": "done"}, headers=appr).status_code == 200
+        assert c.post(url, json=body).json()["approved"] is True
+    finally:
+        routes_policies.set_registry(None)

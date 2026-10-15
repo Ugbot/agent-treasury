@@ -117,17 +117,23 @@ def pay_step(operation_id: str) -> dict:
     except GatewayUnavailable as exc:
         rt.ledger.audit_note(op_mission(rt, operation_id), "system", f"payment {operation_id} unavailable: {exc}",
                              {"operation_id": operation_id, "state": "unavailable"}, kind="payment",
-                             mode=rt.gateway.mode)
+                             mode=rt.gateway.mode, party=op_party(rt, operation_id))
         return {"state": "unavailable", "message": str(exc), "operation_id": operation_id}
     rt.ledger.audit_note(op["mission_id"], "stripe" if op["mode"] == "stripe_test" else "system",
                          f"payment {operation_id} {op['state']}",
                          {"operation_id": operation_id, "state": op["state"], "amount_minor": op["amount_minor"],
                           "currency": op["currency"].lower()},
-                         kind="payment", mode=op["mode"],
+                         kind="payment", mode=op["mode"], party=op_party(rt, operation_id),
                          stripe={"ids": [op["provider_ref"]] if op["provider_ref"] else [], "livemode": False,
                                  "op": operation_id})
     return {"state": op["state"], "provider_ref": op["provider_ref"], "mode": op["mode"],
             "operation_id": operation_id}
+
+
+def op_party(rt: Runtime, operation_id: str) -> str | None:
+    op = rt.saga.get(operation_id)
+    m = rt.ledger.mission(op["mission_id"]) if op and op["mission_id"] else None
+    return (m["recipient"] if m else None) or None
 
 
 def op_mission(rt: Runtime, operation_id: str) -> str | None:
