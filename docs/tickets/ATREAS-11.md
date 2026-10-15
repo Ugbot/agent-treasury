@@ -1,4 +1,4 @@
-# ATREAS-11 — Recover and reconcile payment sagas across crashes and partial failures
+# ATREAS-11 — Backend: Recover and reconcile payment sagas across crashes and partial failures
 
 **Stream:** backend
 

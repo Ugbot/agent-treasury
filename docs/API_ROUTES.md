@@ -7,6 +7,7 @@ Researched 15 October 2026 using official documentation. This is a capability ma
 | API | Actual source → destination | Planning consequence |
 |---|---|---|
 | PaymentIntent / Checkout | Customer payment method → merchant Stripe balance | Merchant-side collection; not a general supplier bank-transfer API. [PaymentIntents](https://docs.stripe.com/api/payment_intents/create) |
+| Invoice | Customer payment method -> merchant Stripe balance when paid | Invoice creation alone does not move funds; policy can issue it and wait for paid evidence. [Pay invoice](https://docs.stripe.com/api/invoices/pay) |
 | Connect Transfer | Platform Stripe balance → connected Stripe account | Route among onboarded recipients, including several recipients for one business operation. [Create transfer](https://docs.stripe.com/api/transfers/create) |
 | Payout | Stripe account balance → its eligible external bank account/card | Use connected-account context for a recipient's payout; do not substitute arbitrary supplier bank details. [Create payout](https://docs.stripe.com/api/payouts/create) |
 | Refund | Original card charge → original charged card | May be partial, bounded by unrefunded amount; cannot redirect to a different supplier. [Create refund](https://docs.stripe.com/api/refunds/create) |

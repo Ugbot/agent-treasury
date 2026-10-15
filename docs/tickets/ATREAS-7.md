@@ -1,4 +1,4 @@
-# ATREAS-7 — Use map and coverage inputs to replan compliant actions with GOAP
+# ATREAS-7 — Backend: Use map and coverage inputs to replan compliant actions with GOAP
 
 **Stream:** backend
 

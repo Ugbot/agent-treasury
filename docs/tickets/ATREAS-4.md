@@ -1,4 +1,4 @@
-# ATREAS-4 — Attach versioned Cognee policies to payments and entitlements
+# ATREAS-4 — Backend: Attach versioned Cognee policies to payments and entitlements
 
 **Stream:** backend
 

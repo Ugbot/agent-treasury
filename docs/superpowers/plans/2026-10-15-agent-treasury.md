@@ -6,7 +6,7 @@
 
 **Architecture:** The backend records inputs, resolves immutable effective policy, evaluates deterministic obligations and executes authorised operations through DBOS steps. Basic GOAP chooses compliant next actions; frontend triggers supply labelled simulation inputs and visualise backend state. Cognee supplies policy/evidence memory and a real model supplies read-only chat and local drafts.
 
-**Tech Stack:** Python 3.13, FastAPI, DBOS Python with SQLite, Cognee REST, Stripe test APIs, React/TypeScript/Vite, configurable OpenAI Responses adapter.
+**Tech Stack:** Python 3.13, FastAPI, DBOS Python with SQLite, Cognee REST, Stripe test APIs, React/TypeScript/Vite, configurable real-model adapter.
 
 ## Global Constraints
 
@@ -25,7 +25,7 @@
 
 ## Execution method
 
-Read PLAN.md, ARCHITECTURE.md, POLICY_MODEL.md and API_CONTRACT.md first. Work the tracker frontier, not numeric order: frontend begins at ATREAS-14 while backend ATREAS-2 and sandbox spike ATREAS-3 proceed independently. Where a native dependency is not satisfied, implement another ready ticket. No task is currently implemented or verified.
+Read PLAN.md, ARCHITECTURE.md, POLICY_MODEL.md and API_CONTRACT.md first. Work the tracker frontier, not numeric order: frontend begins at ATREAS-14 while backend ATREAS-2 and sandbox spike ATREAS-3 proceed independently. Where a native dependency is not satisfied, implement another ready ticket. This is the planning baseline; implementation is proceeding concurrently and tracker acceptance evidence must establish completion.
 
 Each feature ticket below gives exact file responsibility, boundary interfaces, acceptance targets and planned validation. Tests must be written before the relevant behaviour and fail meaningfully before it is added. Do not write tests that merely restate a rendered implementation. Use transactional/concurrency/restart/provider-boundary tests for financial invariants and browser journeys for the controls.
 
@@ -63,7 +63,7 @@ def test_inputs_control_payment(client):
 
 Extend this first test with accepted unique input events and a confirming mock receipt, then repeat the command to assert one logical operation. Deterministic workflow test hooks wait on recorded state/DBOS handles; avoid timing sleeps. ATREAS-11 adds real crash/restart tests in isolated subprocesses and temporary DBs.
 
-## Task 1: ATREAS-2 — Drive a durable payment decision from changing inputs
+## Task 1: ATREAS-2 — Backend: Drive a durable payment decision from changing inputs
 
 **Tracker:** ATREAS-2 · **Stream:** backend · **Blocked by:** None; can start immediately.
 
@@ -71,12 +71,12 @@ Extend this first test with accepted unique input events and a confirming mock r
 
 **Files:**
 - Create/modify: `pyproject.toml`
-- Create/modify: `treasury/models.py`
-- Create/modify: `treasury/ledger.py`
-- Create/modify: `treasury/policy.py`
-- Create/modify: `treasury/workflows.py`
-- Create/modify: `treasury/api.py`
-- Create/modify: `treasury/app.py`
+- Create/modify: `src/treasury/models.py`
+- Create/modify: `src/treasury/ledger.py`
+- Create/modify: `src/treasury/policy.py`
+- Create/modify: `src/treasury/workflows.py`
+- Create/modify: `src/treasury/api.py`
+- Create/modify: `src/treasury/app.py`
 - Create/modify: `tests/conftest.py`
 - Create/modify: `tests/test_core.py`
 
@@ -108,14 +108,14 @@ uv run pytest tests/test_core.py tests/test_recovery.py -q
 
 **Commit:** `feat: drive a durable payment decision from changing inputs [ATREAS-2]`.
 
-## Task 2: ATREAS-3 — Prove Stripe sandbox routes and expose capability readiness
+## Task 2: ATREAS-3 — Backend: Prove Stripe sandbox routes and expose capability readiness
 
 **Tracker:** ATREAS-3 · **Stream:** backend · **Blocked by:** None; can start immediately.
 
 **What it delivers:** Run a standalone capability probe against a user-configured Stripe sandbox and record which collection, Connect, Issuing and invoice routes are actually usable. Produce inspectable test receipts and redacted readiness evidence; do not substitute simulated money for missing access.
 
 **Files:**
-- Create/modify: `treasury/stripe_gateway.py`
+- Create/modify: `src/treasury/stripe_gateway.py`
 - Create/modify: `scripts/check_stripe.py`
 - Create/modify: `.env.example`
 - Create/modify: `tests/test_stripe_gateway.py`
@@ -148,18 +148,18 @@ uv run pytest tests/test_stripe_gateway.py -q
 
 **Commit:** `feat: prove stripe sandbox routes and expose capability readiness [ATREAS-3]`.
 
-## Task 3: ATREAS-4 — Attach versioned Cognee policies to payments and entitlements
+## Task 3: ATREAS-4 — Backend: Attach versioned Cognee policies to payments and entitlements
 
 **Tracker:** ATREAS-4 · **Stream:** backend · **Blocked by:** ATREAS-2.
 
 **What it delivers:** Create written policy bundles in Cognee and attach exact versions to payments, jobs, cards or counterparties. Inspect the effective rules and evidence on any operation; deterministic evaluation uses a validated immutable snapshot rather than treating semantic search text as executable authority.
 
 **Files:**
-- Create/modify: `treasury/models.py`
-- Create/modify: `treasury/policy.py`
-- Create/modify: `treasury/memory.py`
-- Create/modify: `treasury/ledger.py`
-- Create/modify: `treasury/api.py`
+- Create/modify: `src/treasury/models.py`
+- Create/modify: `src/treasury/policy.py`
+- Create/modify: `src/treasury/memory.py`
+- Create/modify: `src/treasury/ledger.py`
+- Create/modify: `src/treasury/api.py`
 - Create/modify: `tests/test_policies.py`
 - Create/modify: `tests/test_memory.py`
 
@@ -192,16 +192,16 @@ uv run pytest tests/test_policies.py tests/test_memory.py -q
 
 **Commit:** `feat: attach versioned cognee policies to payments and entitlements [ATREAS-4]`.
 
-## Task 4: ATREAS-5 — Add and chain policies live without bypassing payment gates
+## Task 4: ATREAS-5 — Backend: Add and chain policies live without bypassing payment gates
 
 **Tracker:** ATREAS-5 · **Stream:** backend · **Blocked by:** ATREAS-4.
 
 **What it delivers:** Use a simple browser policy composer to add typed conditions and obligations, chain them, validate a version, preview its effect and activate it for pending actions. GOAP can fulfil outstanding obligations but cannot reinterpret or remove them.
 
 **Files:**
-- Create/modify: `treasury/policy_graph.py`
-- Create/modify: `treasury/policy.py`
-- Create/modify: `treasury/api.py`
+- Create/modify: `src/treasury/policy_graph.py`
+- Create/modify: `src/treasury/policy.py`
+- Create/modify: `src/treasury/api.py`
 - Create/modify: `tests/test_policy_graph.py`
 
 **Interfaces:** Consumes typed policy drafts/attachments; produces validate_graph(draft), evaluate_graph(graph, inputs) -> Decision and version-checked preview/activate API outcomes.
@@ -233,16 +233,16 @@ uv run pytest tests/test_policy_graph.py -q
 
 **Commit:** `feat: add and chain policies live without bypassing payment gates [ATREAS-5]`.
 
-## Task 5: ATREAS-6 — Invoice above a threshold and wait for actual payment
+## Task 5: ATREAS-6 — Backend: Invoice above a threshold and wait for actual payment
 
 **Tracker:** ATREAS-6 · **Stream:** backend · **Blocked by:** ATREAS-3, ATREAS-5.
 
 **What it delivers:** Attach a collection policy that automatically creates a Stripe test invoice above a configured threshold, displays it in the mission and waits for confirmed payment before allowing downstream disbursement. Keep require-invoice-evidence for a bill distinct from issue-invoice-to-collect.
 
 **Files:**
-- Create/modify: `treasury/stripe_gateway.py`
-- Create/modify: `treasury/workflows.py`
-- Create/modify: `treasury/api.py`
+- Create/modify: `src/treasury/stripe_gateway.py`
+- Create/modify: `src/treasury/workflows.py`
+- Create/modify: `src/treasury/api.py`
 - Create/modify: `tests/test_invoice_policy.py`
 - Create/modify: `tests/live/test_invoices.py`
 
@@ -275,16 +275,16 @@ uv run pytest tests/test_invoice_policy.py -q
 
 **Commit:** `feat: invoice above a threshold and wait for actual payment [ATREAS-6]`.
 
-## Task 6: ATREAS-7 — Use map and coverage inputs to replan compliant actions with GOAP
+## Task 6: ATREAS-7 — Backend: Use map and coverage inputs to replan compliant actions with GOAP
 
 **Tracker:** ATREAS-7 · **Stream:** backend · **Blocked by:** ATREAS-5.
 
 **What it delivers:** Show a simulated delivery map where travel, coverage and assignment events change policy facts. A small deterministic GOAP planner chooses a compliant route/driver or reports no plan, exposing old/new plans and the clause that caused replacement.
 
 **Files:**
-- Create/modify: `treasury/planner.py`
-- Create/modify: `treasury/scenarios.py`
-- Create/modify: `treasury/geometry.py`
+- Create/modify: `src/treasury/planner.py`
+- Create/modify: `src/treasury/scenarios.py`
+- Create/modify: `src/treasury/geometry.py`
 - Create/modify: `tests/test_goap.py`
 
 **Interfaces:** Consumes recorded world facts, action catalogue and unmet obligations; produces plan(world, goal, actions, max_expansions=1000) -> PlanResult and versioned route/assignment changes.
@@ -316,16 +316,16 @@ uv run pytest tests/test_goap.py -q
 
 **Commit:** `feat: use map and coverage inputs to replan compliant actions with goap [ATREAS-7]`.
 
-## Task 7: ATREAS-8 — Release merchant and driver payments only on valid proof
+## Task 7: ATREAS-8 — Backend: Release merchant and driver payments only on valid proof
 
 **Tracker:** ATREAS-8 · **Stream:** backend · **Blocked by:** ATREAS-3, ATREAS-5, ATREAS-7.
 
 **What it delivers:** Collect a customer payment, attach settlement policies and use assigned-driver identity, current destination position and one-use recipient confirmation to release merchant and driver Stripe test transfers. Present the sender as merchant by working assumption.
 
 **Files:**
-- Create/modify: `treasury/proof.py`
-- Create/modify: `treasury/workflows.py`
-- Create/modify: `treasury/stripe_gateway.py`
+- Create/modify: `src/treasury/proof.py`
+- Create/modify: `src/treasury/workflows.py`
+- Create/modify: `src/treasury/stripe_gateway.py`
 - Create/modify: `tests/test_delivery_proof.py`
 - Create/modify: `tests/test_settlement.py`
 - Create/modify: `tests/live/test_settlement.py`
@@ -359,16 +359,16 @@ uv run pytest tests/test_delivery_proof.py tests/test_settlement.py -q
 
 **Commit:** `feat: release merchant and driver payments only on valid proof [ATREAS-8]`.
 
-## Task 8: ATREAS-9 — Issue a trip fuel allowance and enforce it through Issuing
+## Task 8: ATREAS-9 — Backend: Issue a trip fuel allowance and enforce it through Issuing
 
 **Tracker:** ATREAS-9 · **Stream:** backend · **Blocked by:** ATREAS-3, ATREAS-5, ATREAS-7.
 
 **What it delivers:** Attach travel/insurance/fuel policies to a trip card. An eligible active driver at a permitted fuel stop receives capped spending authority; demonstrate one captured fuel purchase and denied invalid attempts in Stripe Issuing test mode.
 
 **Files:**
-- Create/modify: `treasury/fuel.py`
-- Create/modify: `treasury/workflows.py`
-- Create/modify: `treasury/stripe_gateway.py`
+- Create/modify: `src/treasury/fuel.py`
+- Create/modify: `src/treasury/workflows.py`
+- Create/modify: `src/treasury/stripe_gateway.py`
 - Create/modify: `tests/test_fuel_policy.py`
 - Create/modify: `tests/live/test_issuing.py`
 
@@ -401,16 +401,16 @@ uv run pytest tests/test_fuel_policy.py -q
 
 **Commit:** `feat: issue a trip fuel allowance and enforce it through issuing [ATREAS-9]`.
 
-## Task 9: ATREAS-10 — Refund a policy-approved canceled delivery without duplicate money movement
+## Task 9: ATREAS-10 — Backend: Refund a policy-approved canceled delivery without duplicate money movement
 
 **Tracker:** ATREAS-10 · **Stream:** backend · **Blocked by:** ATREAS-3, ATREAS-5, ATREAS-7.
 
 **What it delivers:** Cancel a separate funded order before pickup when no eligible driver or route exists. The refund agent evaluates its attached policy, refunds the original payment and explains the decision in the map/ledger.
 
 **Files:**
-- Create/modify: `treasury/refunds.py`
-- Create/modify: `treasury/workflows.py`
-- Create/modify: `treasury/stripe_gateway.py`
+- Create/modify: `src/treasury/refunds.py`
+- Create/modify: `src/treasury/workflows.py`
+- Create/modify: `src/treasury/stripe_gateway.py`
 - Create/modify: `tests/test_refunds.py`
 - Create/modify: `tests/live/test_refunds.py`
 
@@ -443,16 +443,16 @@ uv run pytest tests/test_refunds.py -q
 
 **Commit:** `feat: refund a policy-approved canceled delivery without duplicate money movement [ATREAS-10]`.
 
-## Task 10: ATREAS-11 — Recover and reconcile payment sagas across crashes and partial failures
+## Task 10: ATREAS-11 — Backend: Recover and reconcile payment sagas across crashes and partial failures
 
 **Tracker:** ATREAS-11 · **Stream:** backend · **Blocked by:** ATREAS-6, ATREAS-8, ATREAS-9, ATREAS-10.
 
 **What it delivers:** Interrupt payment workflows at meaningful fault points and recover them with DBOS. Explicit compensating steps cancel unused authority or request permitted reversals/refunds; the ledger exposes unresolved compensation instead of declaring success.
 
 **Files:**
-- Create/modify: `treasury/workflows.py`
-- Create/modify: `treasury/ledger.py`
-- Create/modify: `treasury/stripe_gateway.py`
+- Create/modify: `src/treasury/workflows.py`
+- Create/modify: `src/treasury/ledger.py`
+- Create/modify: `src/treasury/stripe_gateway.py`
 - Create/modify: `tests/test_recovery.py`
 - Create/modify: `tests/test_sagas.py`
 
@@ -485,16 +485,16 @@ uv run pytest tests/test_recovery.py tests/test_sagas.py -q
 
 **Commit:** `feat: recover and reconcile payment sagas across crashes and partial failures [ATREAS-11]`.
 
-## Task 11: ATREAS-12 — Use real AI chat to explain policy decisions and draft job messages
+## Task 11: ATREAS-12 — Backend: Use real AI chat to explain policy decisions and draft job messages
 
 **Tracker:** ATREAS-12 · **Stream:** backend · **Blocked by:** ATREAS-4.
 
 **What it delivers:** Add a sidebar backed by a configured real model API. Operators can ask why a payment was held/paid, inspect cited policy evidence and generate editable messages for the driver, merchant or customer; messages stay as local drafts.
 
 **Files:**
-- Create/modify: `treasury/chat.py`
-- Create/modify: `treasury/memory.py`
-- Create/modify: `treasury/api.py`
+- Create/modify: `src/treasury/chat.py`
+- Create/modify: `src/treasury/memory.py`
+- Create/modify: `src/treasury/api.py`
 - Create/modify: `tests/test_chat.py`
 
 **Interfaces:** Consumes persisted context, Cognee evidence, history IDs and real model configuration; produces ChatReply/Draft with validated source citations and no mutation tools.
@@ -811,7 +811,7 @@ npm run build
 
 ## Bootstrap and validation details
 
-The first backend ticket creates `pyproject.toml` with Python >=3.13,<3.14, FastAPI, Uvicorn, DBOS, HTTP client, Pydantic and testing dependencies, plus `uv.lock`; use the registry-resolved tested versions. The frontend foundation creates `package.json`, `package-lock.json`, Vite/React/TypeScript, Vitest/Testing Library and Playwright scripts with an explicit package manager version. Avoid arbitrary lifecycle scripts during installation; inspect any required native build before enabling it. These files do not exist yet, so the validation commands above become runnable as their owning foundation ticket lands.
+The first backend ticket creates `pyproject.toml` with Python >=3.13,<3.14, FastAPI, Uvicorn, DBOS, HTTP client, Pydantic and testing dependencies, plus `uv.lock`; use the registry-resolved tested versions. The frontend foundation creates `package.json`, `package-lock.json`, Vite/React/TypeScript, Vitest/Testing Library and Playwright scripts with an explicit package manager version. Avoid arbitrary lifecycle scripts during installation; inspect any required native build before enabling it. These commands become applicable as the owning foundation ticket supplies its manifest and lockfile; inspect the current files because a concurrent workstream has started scaffolding.
 
 The provider adapters have fake transports for unit tests, configured network timeouts, strict response validation and redacted errors. Live tests are opt-in and assert `livemode=false`. Never use missing keys as a passing live test; report skipped/unavailable distinctly. Public readiness remains unmet until live receipts exist.
 

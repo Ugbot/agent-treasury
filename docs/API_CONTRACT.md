@@ -1,6 +1,6 @@
 # Frontend/backend contract
 
-This is the planned v1 contract. No endpoints exist yet. The frontend can build fixture views against it; live integration must replace fixtures explicitly. Use camelCase JSON, integer minor units, enum strings and ISO timestamps; simulation time is a separate integer `simTime` in seconds. Validate every external request/response. Monetary enums/IDs are server-owned.
+This is the target v1 contract. Implementation is proceeding concurrently; compare current OpenAPI and shared types before marking integration accepted. The frontend can build fixture views against it; live integration must replace fixtures explicitly. Use camelCase JSON, integer minor units, enum strings and ISO timestamps; simulation time is a separate integer `simTime` in seconds. Validate every external request/response. Monetary enums/IDs are server-owned.
 
 ## Read model
 
@@ -10,6 +10,22 @@ This is the planned v1 contract. No endpoints exist yet. The frontend can build 
 type Verdict = 'allow' | 'hold' | 'deny' | 'approval_required';
 type PaymentMode = 'mock' | 'stripe_test';
 type Scope = 'organisation' | 'mission' | 'payment' | 'card' | 'counterparty';
+type OperationStatus = 'planned' | 'reserved' | 'submitted' | 'confirmed' |
+  'held' | 'denied' | 'awaiting_approval' | 'unknown' | 'failed' |
+  'compensating' | 'compensated' | 'compensation_required';
+interface Point { x: number; y: number }
+interface Driver { driverId: string; name: string; position: Point;
+  assignmentVersion: number; eligible: boolean; coverageRecordId: string }
+interface Route { routeId: string; points: Point[]; zoneIds: string[];
+  status: 'proposed' | 'active' | 'replaced' | 'denied' }
+interface MapZone { zoneId: string; label: string; polygon: Point[]; permitted: boolean }
+interface MapPlace { placeId: string; label: string; position: Point; radiusMetres: number }
+interface PolicyNode { nodeId: string; kind: 'condition' | 'evidence' | 'obligation' | 'all_of';
+  clauseId: string; factPath?: string; operator?: 'eq' | 'gt' | 'gte' | 'lte' | 'in' | 'contains_all';
+  value?: string | number | boolean | string[]; unit?: 'gbp_minor' | 'metres' | 'seconds';
+  verifier?: 'coverage' | 'geofence' | 'route_corridor' | 'receipt' | 'funding' | 'approval';
+  obligation?: 'issue_invoice' | 'await_payment' | 'request_approval' |
+    'verify_coverage' | 'collect_receipt' | 'reserve_fuel' | 'settle' }
 interface Attachment {
   attachmentId: string; targetType: Scope; targetId: string;
   policyId: string; policyVersion: number; mandatory: boolean;
@@ -25,7 +41,7 @@ interface Operation {
   operationId: string; kind: 'collect' | 'invoice' | 'transfer' |
     'fuel_authorization' | 'fuel_capture' | 'refund' | 'reversal';
   amountMinor: number; currency: 'gbp'; recipientId: string;
-  status: string; mode: PaymentMode; policyAttachments: Attachment[];
+  status: OperationStatus; mode: PaymentMode; policyAttachments: Attachment[];
   effectivePolicies: Attachment[]; decisionId: string | null;
   provider: {accountId: string; objectType: string; objectId: string;
     livemode: false; status: string} | null;
@@ -37,22 +53,22 @@ interface Snapshot {
     simTime: number; inputRevision: number; assignmentVersion: number} | null;
   inputs: Record<string, unknown>;
   policies: {policyId: string; version: number; title: string; contentHash: string;
-    memoryRef: string | null; nodes: unknown[]; edges: unknown[]}[];
+    memoryRef: string | null; nodes: PolicyNode[]; edges: {from: string; to: string}[]}[];
   operations: Operation[]; decisions: Decision[];
   plan: {planId: string; replaces: string | null; actions: string[];
     reason: string; completedOperationIds: string[]};
-  map: {drivers: unknown[]; merchant: unknown; destination: unknown;
-    zones: unknown[]; fuelStops: unknown[]; routes: unknown[]};
+  map: {drivers: Driver[]; merchant: MapPlace; destination: MapPlace;
+    zones: MapZone[]; fuelStops: MapPlace[]; routes: Route[]};
   events: {eventId: string; type: string; simTime: number;
     description: string; evidenceIds: string[]}[];
 }
 ```
 
-The read-model map/node payloads are versioned typed schemas implemented with the first consumer tickets, not unrestricted execution data. Shared frontend types are generated/checked against FastAPI OpenAPI. `unknown` represents read-only render payloads only; mutating payloads below are strict discriminated schemas.
+Shared frontend types are generated/checked against FastAPI OpenAPI. A PolicyNode is a discriminated union in the executable schemas: each kind accepts only its applicable fields. The compact interface above lists those fields together for planning readability; it is not permission to accept mismatched node data. Read-only observed/expected facts may have varied values; mutating payloads are strict discriminated schemas.
 
 ## Commands and resources
 
-All mutations require demo-operator authority, exact-origin checks, unique command IDs and expected revision where state matters. Return `{data: ...}` with a server revision, or `{error:{code,message,details}}`. Never return stack traces. Use 409 for stale revisions/duplicate ID with changed payload, 422 for invalid schema/graph and 503 for unavailable providers.
+All mutations require demo-operator authority, exact-origin checks, unique command IDs and expected revision where state matters. First deduplicate an identical command/event before rejecting an old revision, so a retry returns the original accepted result. A reused ID with changed payload is a conflict. Return `{data: ...}` with a server revision, or `{error:{code,message,details}}`. Never return stack traces. Use 409 for stale revisions/duplicate ID with changed payload, 422 for invalid schema/graph and 503 for unavailable providers.
 
 | Endpoint | Request | Result |
 |---|---|---|
@@ -61,6 +77,7 @@ All mutations require demo-operator authority, exact-origin checks, unique comma
 | POST /api/policies | `{commandId, policyId, title, scope, clauses, nodes, edges}` | Validated draft version, no authority yet |
 | POST /api/policies/{id}/previews | `{version, targetType, targetId, expectedRevision}` | Before/after clause outcomes; no payment side effects |
 | POST /api/policies/{id}/activations | `{commandId, version, expectedActiveVersion}` | Memory-ready active snapshot and affected pending decisions |
+| PATCH /api/payments/{id} | `{commandId, amountMinor, currency, expectedRevision}` | Change a planned/held amount only; invalidate unused authority/approval; reject submitted/confirmed operation |
 | POST /api/payments/{id}/policy-attachments | `{commandId, policyId, policyVersion, expectedRevision}` | Audited attachment and new effective policy hash |
 | DELETE /api/payments/{id}/policy-attachments/{attachmentId} | expectedRevision and commandId headers | Detach optional pending attachment only |
 | POST /api/missions/{id}/policy-attachments | Same attachment request | Audited job attachment |
@@ -84,3 +101,46 @@ Provider events use the signed webhook path, not a browser `payment_paid` button
 ## AI reply contract
 
 `{messageId,text,provider,model,citations:[{policyId,version,clauseId,evidenceIds,decisionId}],draftId?}`. Server constructs context from persisted facts and Cognee evidence; it validates citation identities before returning them. Chat cannot invoke mutation endpoints. Draft delivery is local only.
+
+## Command envelope (v1, ATREAS-14)
+
+Every mutation from the browser is a typed command. The frontend never decides money authority; it sends inputs and renders what the backend returns.
+
+```typescript
+interface CommandEnvelope<K extends string, P> {
+  commandId: string;          // client-generated UUID, unique per user action; retries reuse it
+  type: K;                    // discriminator
+  missionId: string;
+  expectedRevision: number;   // last snapshot revision the operator saw
+  issuedAt: string;           // ISO timestamp, informational only
+  payload: P;
+}
+```
+
+Command types emitted by the trigger deck: `set_amount {amountMinor, currency}`, `set_insurance {covered: boolean}`, `set_location {x, y, zone}`, `confirm_receipt {recipientId, receiptNonce}`, `attach_policy {targetType, targetId, policyId, policyVersion}`, `select_scenario {scenario, mode}`.
+
+Result: `{data: {accepted: true, revision, commandId}}` or `{error:{code,message,details}}`. A repeated `commandId` with the same payload returns the same result; with a different payload returns 409 `command_conflict`. A stale `expectedRevision` returns 409 `stale_revision` and the client refreshes the snapshot.
+
+Adapter mapping: the frontend client maps each command onto the resource endpoints above (for example `set_amount` to the pending-payment amount proposal on `PATCH /api/payments/{id}`, `attach_policy` to the matching `policy-attachments` route, `select_scenario` to `POST /api/missions`).
+
+## Additional read resources
+
+| Endpoint | Result |
+|---|---|
+| GET /api/missions/{id} | Mission summary and current revision |
+| GET /api/missions/{id}/events?after=<revision> | Chronological event feed, each item carrying `mode` |
+| GET /api/missions/{id}/decisions | Decisions with verdict, policy version/hash, clauses and obligations |
+| GET /api/policies, GET /api/policies/{id}?version= | Policy versions and content hashes |
+| GET /api/missions/{id}/operations | Operations with provider references |
+| GET /api/missions/{id}/saga | Saga/evidence trail: ordered steps `{stepId, name, status, operationId, evidenceIds, mode}` |
+| POST /api/missions/{id}/chat/messages | See AI reply contract |
+
+## Mode labels
+
+Every event, operation and receipt carries a `mode` the UI must show distinctly:
+
+- `fixture`: frontend-only canned data; no backend involved. Shown only when fixture mode is explicitly enabled (`VITE_API_MODE=fixture`).
+- `mock`: backend simulation; no provider call.
+- `stripe_test`: Stripe test-mode object (`livemode: false`). Live keys and `livemode: true` objects are rejected by the backend and must never render as success.
+
+Event feed items additionally carry `source: 'simulation' | 'provider'` so simulator inputs are never confused with provider-confirmed events.

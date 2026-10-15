@@ -6,17 +6,17 @@ Project **ATREAS**, epic **ATREAS-1**. Implementation is open; acceptance tests 
 
 | Ticket | Deliverable | Blocked by |
 |---|---|---|
-| [ATREAS-2](tickets/ATREAS-2.md) | Drive a durable payment decision from changing inputs | None |
-| [ATREAS-3](tickets/ATREAS-3.md) | Prove Stripe sandbox routes and expose capability readiness | None |
-| [ATREAS-4](tickets/ATREAS-4.md) | Attach versioned Cognee policies to payments and entitlements | ATREAS-2 |
-| [ATREAS-5](tickets/ATREAS-5.md) | Add and chain policies live without bypassing payment gates | ATREAS-4 |
-| [ATREAS-6](tickets/ATREAS-6.md) | Invoice above a threshold and wait for actual payment | ATREAS-3, ATREAS-5 |
-| [ATREAS-7](tickets/ATREAS-7.md) | Use map and coverage inputs to replan compliant actions with GOAP | ATREAS-5 |
-| [ATREAS-8](tickets/ATREAS-8.md) | Release merchant and driver payments only on valid proof | ATREAS-3, ATREAS-5, ATREAS-7 |
-| [ATREAS-9](tickets/ATREAS-9.md) | Issue a trip fuel allowance and enforce it through Issuing | ATREAS-3, ATREAS-5, ATREAS-7 |
-| [ATREAS-10](tickets/ATREAS-10.md) | Refund a policy-approved canceled delivery without duplicate money movement | ATREAS-3, ATREAS-5, ATREAS-7 |
-| [ATREAS-11](tickets/ATREAS-11.md) | Recover and reconcile payment sagas across crashes and partial failures | ATREAS-6, ATREAS-8, ATREAS-9, ATREAS-10 |
-| [ATREAS-12](tickets/ATREAS-12.md) | Use real AI chat to explain policy decisions and draft job messages | ATREAS-4 |
+| [ATREAS-2](tickets/ATREAS-2.md) | Backend: Drive a durable payment decision from changing inputs | None |
+| [ATREAS-3](tickets/ATREAS-3.md) | Backend: Prove Stripe sandbox routes and expose capability readiness | None |
+| [ATREAS-4](tickets/ATREAS-4.md) | Backend: Attach versioned Cognee policies to payments and entitlements | ATREAS-2 |
+| [ATREAS-5](tickets/ATREAS-5.md) | Backend: Add and chain policies live without bypassing payment gates | ATREAS-4 |
+| [ATREAS-6](tickets/ATREAS-6.md) | Backend: Invoice above a threshold and wait for actual payment | ATREAS-3, ATREAS-5 |
+| [ATREAS-7](tickets/ATREAS-7.md) | Backend: Use map and coverage inputs to replan compliant actions with GOAP | ATREAS-5 |
+| [ATREAS-8](tickets/ATREAS-8.md) | Backend: Release merchant and driver payments only on valid proof | ATREAS-3, ATREAS-5, ATREAS-7 |
+| [ATREAS-9](tickets/ATREAS-9.md) | Backend: Issue a trip fuel allowance and enforce it through Issuing | ATREAS-3, ATREAS-5, ATREAS-7 |
+| [ATREAS-10](tickets/ATREAS-10.md) | Backend: Refund a policy-approved canceled delivery without duplicate money movement | ATREAS-3, ATREAS-5, ATREAS-7 |
+| [ATREAS-11](tickets/ATREAS-11.md) | Backend: Recover and reconcile payment sagas across crashes and partial failures | ATREAS-6, ATREAS-8, ATREAS-9, ATREAS-10 |
+| [ATREAS-12](tickets/ATREAS-12.md) | Backend: Use real AI chat to explain policy decisions and draft job messages | ATREAS-4 |
 
 ## Frontend
 
@@ -106,3 +106,7 @@ flowchart TD
 - ATREAS-14: frontend trigger shell and shared presentation contract.
 
 Frontend feature graphics follow ATREAS-14. Backend financial scenarios follow the policy engine and proven sandbox access. ATREAS-19 integrates both streams; ATREAS-13 packages/publishes the result afterward.
+
+## Planning audit
+
+Verified 18 work tickets plus epic ATREAS-1, 80 acceptance criteria and 40 native dependency edges. All acceptance results remain unrecorded; this verifies planning consistency, not application behaviour. The [local tracker board](http://127.0.0.1:8765/tracker) is available on the current machine.

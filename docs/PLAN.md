@@ -16,7 +16,7 @@ Delivery is the visual example. Insurance, travel, fuel cards, invoices, receipt
 - DBOS Python for durable workflows, event waits, steps and explicit compensating actions. SQLite for a single-server demo, with separate persistent system/application databases.
 - Stripe test Payments, Invoicing, Connect Transfers and Issuing.
 - React + TypeScript + Vite for trigger controls and graphics. Use an SVG map in simulator metre coordinates; no routing API or external map tiles are required.
-- A configured real model API for read-only chat/explanations and local message drafts. Proposed initial adapter: OpenAI Responses, with model chosen through configuration and verified against account access.
+- A configured real model API for read-only chat/explanations and local message drafts. Use the configured real-model adapter, with provider/model shown and account access verified; the concurrent implementation currently supplies an Anthropic adapter. No provider-specific model is a product requirement.
 
 No TaskEngine, LittleHorse, Kafka, Redis or dependency on the old repository.
 
@@ -51,4 +51,4 @@ Working product assumption: sender is the merchant, recipient/customer pays for 
 
 ## Current readiness
 
-Repository contains planning/research only. No app or automated tests exist yet. The process environment was checked for named Stripe, Cognee and model credentials without displaying values; none were configured there. Keys may be supplied later through ignored local configuration. No authenticated provider call has been made, and account capabilities remain unverified.
+This document records the requested plan. Implementation started concurrently in another workstream while it was being written; consult current source and actual test evidence rather than treating this plan as a completion report. The process environment was checked for named Stripe, Cognee and model credentials without displaying values; none were configured there. Keys may be supplied later through ignored local configuration. No authenticated provider call has been made, and account capabilities remain unverified.

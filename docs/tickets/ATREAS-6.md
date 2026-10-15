@@ -1,4 +1,4 @@
-# ATREAS-6 — Invoice above a threshold and wait for actual payment
+# ATREAS-6 — Backend: Invoice above a threshold and wait for actual payment
 
 **Stream:** backend
 

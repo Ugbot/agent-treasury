@@ -1,4 +1,4 @@
-# ATREAS-12 — Use real AI chat to explain policy decisions and draft job messages
+# ATREAS-12 — Backend: Use real AI chat to explain policy decisions and draft job messages
 
 **Stream:** backend
 

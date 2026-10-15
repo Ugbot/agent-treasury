@@ -1,4 +1,4 @@
-# ATREAS-3 — Prove Stripe sandbox routes and expose capability readiness
+# ATREAS-3 — Backend: Prove Stripe sandbox routes and expose capability readiness
 
 **Stream:** backend
 
