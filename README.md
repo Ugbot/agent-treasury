@@ -1,12 +1,17 @@
 # Agent Treasury
 
-A hackathon project exploring delivery payments governed by travel policy, coordinated by TaskEngine: merchant bills, capped fuel-card buying, customer refunds and driver payouts.
+A hackathon project exploring delivery payments governed by travel policy, using basic GOAP planning, Cognee policy memory and DBOS execution/sagas: merchant bills, capped fuel-card buying, customer refunds and driver payouts.
 
 **Status: research and design. There is no runnable application yet.**
 
 The goal is to execute Stripe test-mode operations under a shared written policy, replan unfinished work when constraints change, and explain every payment using the policy version and evidence that authorised it. Cognee supplies shared policy and decision memory.
 
 ## Working documents
+
+- [Build plan and ticket index](docs/PLAN.md)
+- [Backend/frontend backlog](docs/BACKLOG.md)
+- [Policy chaining and attachments](docs/POLICY_MODEL.md)
+- [Frontend triggers and graphics](docs/FRONTEND_PLAN.md)
 
 - [Delivery map and policy scenarios](docs/DELIVERY_DEMO.md)
 - [Combined product idea](docs/IDEAS.md)
@@ -17,7 +22,7 @@ The goal is to execute Stripe test-mode operations under a shared written policy
 
 The [Briefcase × Stripe brief](https://hackathons.briefcase.so/stripe-october-2026/) requires Stripe test mode, a written spending policy, evidence-based explanations, a public GitHub repository and a demo video of at most two minutes. Project implementation starts during the permitted build window; planning and documentation may precede it.
 
-This is a fresh repository. TaskEngine is an intended dependency from [AI-by-Wire](https://github.com/Ugbot/aibywire); no implementation code has been copied here. Account-specific Stripe capabilities remain unverified.
+This is a fresh standalone repository. The selected runtime is DBOS, with an application-owned GOAP planner; Cognee stores policy/evidence history. Policies can be added, chained and attached to individual payments and entitlements. The frontend generates simulation inputs and visualises backend decisions; actual AI provides explanations and local message drafts. Account-specific Stripe capabilities remain unverified.
 
 ## Licence
 

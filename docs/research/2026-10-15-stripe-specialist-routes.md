@@ -31,7 +31,7 @@ Replanning implication: revoke an unused old seller credential, then issue a new
 
 A paid endpoint responds with HTTP 402 and payment details. The agent retries with a payment credential; the server creates the Stripe PaymentIntent and returns the resource with a receipt. The integration uses `mppx` and a Stripe profile ID. Stripe documents SPT card payments and stablecoins, plus `mppx validate` completing full sandbox roundtrips. The sample config detects a sandbox key; test mode uses a `profile_test_` profile. Manual SPT testing can use Link CLI after login.
 
-This supports a concrete demo: three specialist data/API suppliers, a budget and provider allowlist, then a revoked provider or changed price causing the task engine to purchase from another supplier. The merchant endpoints can be our own demonstrator services, labelled as such. [MPP integration and sandbox instructions](https://docs.stripe.com/payments/machine/mpp)
+This supports a concrete demo: three specialist data/API suppliers, a budget and provider allowlist, then a revoked provider or changed price causing the GOAP planner to select from another supplier. The merchant endpoints can be our own demonstrator services, labelled as such. [MPP integration and sandbox instructions](https://docs.stripe.com/payments/machine/mpp)
 
 MPP supports cards via SPTs and stablecoins; x402 uses stablecoins. Stripe lists MPP Tempo USDC.e, MPP Solana USDC, and x402 Base USDC. Stablecoin acceptance outside the US requires an access request; it is not the low-friction UK default. [Machine payments availability](https://docs.stripe.com/payments/machine)
 

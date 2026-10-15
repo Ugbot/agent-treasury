@@ -1,6 +1,6 @@
 # API routes for Agent Treasury
 
-Researched 15 October 2026 using official documentation and the local TaskEngine source. This is a capability map, not evidence that a particular account has access. No authenticated Stripe requests have been made.
+Researched 15 October 2026 using official documentation. This is a capability map, not evidence that a particular account has access. No authenticated Stripe requests have been made.
 
 ## Money routes
 
@@ -32,9 +32,9 @@ Briefcase MCP exposes bookkeeping reads/writes, documents, expense claims and Le
 
 Stripe Financial Connections supplies permissioned account data and verification used by other payment products, not a standalone general payment rail. [Financial Connections](https://docs.stripe.com/financial-connections)
 
-Stripe MCP is a tool interface to underlying Stripe APIs. Its user-authenticated write actions can require human confirmation. Prefer explicit SDK operations inside policy-controlled TaskEngine execution workers for the proposed application, preserving required human actions for any selected product. This is an architecture recommendation. [Stripe MCP](https://docs.stripe.com/mcp)
+Stripe MCP is a tool interface to underlying Stripe APIs. Its user-authenticated write actions can require human confirmation. Prefer explicit SDK operations inside policy-controlled DBOS execution steps for the proposed application, preserving required human actions for any selected product. This is an architecture recommendation. [Stripe MCP](https://docs.stripe.com/mcp)
 
-The previously inspected TaskEngine source has remainder planning and run lineage in taskengine/littlehorse/run_manager.py and runs.py. It carries completed work into replans. Consuming that library remains a future integration decision; no source was copied. [TaskEngine upstream](https://github.com/Ugbot/aibywire)
+The selected architecture uses a small application-owned GOAP planner and DBOS workflows/steps. Checkpoint nondeterministic inputs, preserve confirmed effects across replans and use explicit compensation branches. [DBOS workflows](https://docs.dbos.dev/python/tutorials/workflow-tutorial), [DBOS compensation example](https://docs.dbos.dev/python/examples/widget-store)
 
 ## Explain every pound
 

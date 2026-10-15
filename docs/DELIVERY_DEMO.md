@@ -1,10 +1,10 @@
 # Delivery demo: payments follow travel policy
 
-Working design, 15 October 2026. User-selected direction: a website simulates drivers moving on a map; several scenarios issue or release funds according to travel policies. This draft is for design review, not a claim of implementation.
+Working design, 15 October 2026. User-selected direction: a website simulates drivers moving on a map; several scenarios issue or release funds according to travel policies. The user approved these scenarios; the [current build plan](PLAN.md) incorporates the selected GOAP/Cognee/DBOS stack and later policy/AI requirements. No implementation is claimed.
 
 ## Product
 
-An Uber-style delivery marketplace with TaskEngine agents coordinating collection, merchant bills, driver entitlements, fuel-card spending, proof of receipt, payouts and refunds. A shared policy worker determines whether a proposed action is permitted and returns the exact clause and evidence. Cognee remembers policy history and decisions. Replanning finds another permitted route or driver when conditions change.
+An Uber-style delivery marketplace with GOAP-directed agents with DBOS execution coordinating collection, merchant bills, driver entitlements, fuel-card spending, proof of receipt, payouts and refunds. A shared policy worker determines whether a proposed action is permitted and returns the exact clause and evidence. Cognee remembers policy history and decisions. Replanning finds another permitted route or driver when conditions change.
 
 Working assumption awaiting clarification: sender means the merchant selling goods; recipient/customer pays for goods plus delivery. If sender instead means the customer paying a shipping fee, change the financial split to driver payment and any permitted customer deposit refund.
 
@@ -13,7 +13,7 @@ Working assumption awaiting clarification: sender means the merchant selling goo
 One browser console with three connected views:
 
 1. Map: merchant, recipient, drivers, permitted zones, fuel stops and current/replacement routes. Run/pause and scenario controls generate explicit simulation events; a scrub/replay view never submits new Stripe operations.
-2. Policy and plan: current clauses, driver eligibility, coverage evidence, current fuel entitlement, delivery proof checklist and TaskEngine plan changes. Failed checks name the unmet condition.
+2. Policy and plan: current clauses, driver eligibility, coverage evidence, current fuel entitlement, delivery proof checklist and GOAP plan changes. Failed checks name the unmet condition.
 3. Money and evidence: planned/reserved/submitted/confirmed funds, approvals, card authorizations/captures, transfers/refunds, fees and Stripe references. Selecting an operation answers why it happened.
 
 A customer/driver view switch can demonstrate receipt confirmation. Simulation controls are separate from an agent's authority: moving a marker supplies evidence, not permission to bypass a rule. Clearly label map positions, insurance records, merchant events and receipt confirmations as simulated. Stripe operations use actual test APIs.
@@ -28,7 +28,7 @@ These are illustrative configurable demo rules, not legal insurance terms or a p
 | COVER-1 | Supplied coverage record must include job type, vehicle, goods value and every planned zone, and remain valid through expected completion | Versioned demo insurer record; no real insurance-provider integration claimed |
 | TRAVEL-1 | Route must remain within the organisation's permitted zones | Route-zone intersection and current simulated position; eligible cover never overrides a prohibited zone |
 | FUEL-1 | Active eligible job may receive up to GBP 8 at permitted fuel merchants; no spend while unassigned or after completion | Issuing category/country controls plus local job policy and budget reservation |
-| FUEL-2 | Fuel stop must lie within a configured distance of the approved route, with fresh position evidence | Map geometry and timestamp; Stripe country controls alone do not supply a local geofence |
+| FUEL-2 | Fuel stop must lie within 100 simulated metres of the approved route, with fresh position evidence | Map geometry and timestamp; Stripe country controls alone do not supply a local geofence |
 | RECEIPT-1 | Delivery release requires correct assigned driver, fresh position inside destination radius and fresh one-use recipient confirmation bound to the delivery | Versioned assignment, simulation timestamp, distance, receipt event ID and consumed nonce |
 | PAY-1 | Pay approved merchant bill and driver fee once after delivery proof passes, within limits | Original order, approved amounts, current policy, settlement operation IDs and ledger |
 | APPROVE-1 | Amounts above the written automatic limit require human approval for that operation | Approval bound to amount, currency, recipient and policy version; no invoice splitting |
@@ -48,7 +48,7 @@ An active eligible driver reaches an approved fuel stop. Demonstrate a GBP 5 fue
 
 ### 3. Coverage or travel change causes replanning
 
-Before pickup, a route change makes the proposed trip incompatible with Driver A's supplied coverage. Policy refuses dispatch and any unused fuel authority for that assignment. TaskEngine evaluates another route/eligible Driver B, recomputes the allowance and replaces only pending work. If every candidate breaches policy, escalate or cancel; never weaken the requirement to force success. No after-pickup reassignment is claimed without an explicit custody-handover flow.
+Before pickup, a route change makes the proposed trip incompatible with Driver A's supplied coverage. Policy refuses dispatch and any unused fuel authority for that assignment. GOAP evaluates another route/eligible Driver B, recomputes the allowance and replaces only pending work. If every candidate breaches policy, escalate or cancel; never weaken the requirement to force success. No after-pickup reassignment is claimed without an explicit custody-handover flow.
 
 ### 4. Cancel and refund
 
@@ -68,7 +68,7 @@ Treat identity authentication, payment-card authentication and delivery authoris
 
 The simulator demonstrates these controls without claiming tamper-proof physical presence or production MFA. Receipt codes/nonces expire, are rate-limited and are bound to order, recipient and assignment; replaying them never authorises another payment. A production identity or insurer integration is outside the first demo.
 
-## TaskEngine and Cognee responsibilities
+## GOAP, DBOS and Cognee responsibilities
 
 - Dispatch/planning worker proposes driver, route and dependencies.
 - Coverage/travel policy worker performs deterministic eligibility checks against current approved policy and supplied evidence.
@@ -92,4 +92,4 @@ Suggested recording: 0-15s introduce map, order and written rules; 15-40s show a
 
 ## Before implementation
 
-Confirm sender/merchant meaning and the proposed scenarios; verify Stripe Connect and Issuing sandbox access; choose exact amounts, limits and geometry; select TaskEngine runtime/dependency revision. Insurance records and map/receipt events remain labelled simulations. This document is a concrete draft awaiting design approval.
+Confirm sender/merchant meaning and the proposed scenarios; verify Stripe Connect and Issuing sandbox access; choose exact amounts, limits and geometry; pin the tested DBOS dependency and implement the application-owned GOAP planner. Insurance records and map/receipt events remain labelled simulations. The current [policy model](POLICY_MODEL.md) and [implementation plan](superpowers/plans/2026-10-15-agent-treasury.md) define runtime attachments/chaining, invoice obligations and AI chat.
