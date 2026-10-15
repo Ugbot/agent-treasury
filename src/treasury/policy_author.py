@@ -359,7 +359,7 @@ def draft(registry: PolicyRegistry, description: str, base_policy_id: str | None
                  f"{base_bundle.policy_id!r}):\n" + json.dumps(base_bundle.to_dict()["clauses"]))
     try:
         resp = client.messages.create(model=MODEL, max_tokens=1500, system=SYSTEM, tools=[TOOL],
-                                      tool_choice={"type": "tool", "name": "propose_policy"},
+                                      tool_choice={"type": "auto"},  # forced tool choice is rejected by this model; the prompt requires propose_policy
                                       messages=[{"role": "user", "content": user}])
     except Exception as e:
         raise DraftError("model_error", f"drafting model call failed: {type(e).__name__}") from e

@@ -102,7 +102,7 @@ def test_llm_proposal_goes_through_policy_and_plan():
     r = agent_with(audit, client=llm, executed=done).step(ctx)
     assert r.source == "llm" and r.agent_mode == "llm+goap" and r.status == "approved" and done == ["pay_driver"]
     sent = llm.seen[0]
-    assert sent["model"] == "claude-sonnet-5-5" and sent["tool_choice"] == {"type": "any"}
+    assert sent["model"] == "claude-sonnet-5-5" and sent["tool_choice"] == {"type": "auto"}
     assert {t["name"] for t in sent["tools"]} == {t["name"] for t in TOOLS} and len(TOOLS) == 7
 
 

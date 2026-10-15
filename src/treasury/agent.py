@@ -341,9 +341,9 @@ class Agent:
     # --- proposing ---
     def _llm_propose(self, ctx: AgentContext) -> Proposal | None:
         resp = self.client.messages.create(  # type: ignore[union-attr]
-            model=self.model, max_tokens=800, system=SYSTEM, tools=TOOLS, tool_choice={"type": "any"},
+            model=self.model, max_tokens=800, system=SYSTEM, tools=TOOLS, tool_choice={"type": "auto"},  # this model rejects forced tool choice; SYSTEM says to always call a tool
             messages=[{"role": "user", "content": "State:\n" + json.dumps(_llm_state(ctx, self.audit), default=str)
-                       + "\nPropose the single next action."}])
+                       + "\nPropose the single next action by calling exactly one tool."}])
         for block in resp.content:
             if getattr(block, "type", "") == "tool_use":
                 return Proposal(kind=block.name, **dict(block.input))

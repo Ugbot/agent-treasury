@@ -159,7 +159,7 @@ def _drive(rt: Runtime, run: Run, agent: Agent, ctx_fn: Callable[[], AgentContex
             return "stopped"
         if res.status == "none":
             return "done"
-        if res.status != "approved" or (res.execution or {}).get("state") in ("unavailable", "failed"):
+        if res.status != "approved" or (res.execution or {}).get("state") in ("unavailable", "failed", "not_executable"):
             return "stopped"
     return "done"
 
@@ -167,6 +167,8 @@ def _drive(rt: Runtime, run: Run, agent: Agent, ctx_fn: Callable[[], AgentContex
 def _transfer_executor(rt: Runtime, run: Run, session: PlannerSession):
     def ex(p: Proposal, ctx: AgentContext, v: PolicyVerdict) -> dict:
         leg = p.kind.removeprefix("pay_")
+        if p.kind not in run.state["destinations"]:  # e.g. the model proposed request_approval: nothing to pay here
+            return {"state": "not_executable", "message": f"{p.kind} is not a payment this scenario can execute"}
         dest = run.state["destinations"][p.kind]
         op = f"settle:{run.state['order_id']}:{leg}"
         return _money(rt, run, p, op, dest, v, lambda: rt.gateway.transfer(op, p.amount_minor, ctx.currency, dest),
