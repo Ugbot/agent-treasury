@@ -11,6 +11,9 @@ dependencies = [
   "pydantic>=2.7",
   "dbos>=1.14",
   "stripe>=11",
+  "anthropic>=1.14.0",
+  "cognee>=1.6.4",
+  "python-dotenv>=1.2.4",
 ]
 
 [dependency-groups]

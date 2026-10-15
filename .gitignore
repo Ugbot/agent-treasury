@@ -1,6 +1,7 @@
 .DS_Store
 .env
 .env.*
+.treasury-state.json
 !.env.example
 *.pem
 *.key

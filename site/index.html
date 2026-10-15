@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent Treasury</title>
+<meta name="description" content="Hackathon build in progress: a delivery marketplace where Stripe test-mode payments only happen when a written policy allows them, with evidence for every decision.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Agent Treasury">
+<meta property="og:description" content="Delivery payments that follow a written policy. Stripe test mode only. Hackathon build in progress.">
+<meta property="og:image" content="og.svg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="banner"><div class="wrap">Stripe test mode only. No real money moves. Map positions, insurance records and receipts are simulated.</div></div>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#top"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M9 17l5 5 9-12" fill="none" stroke="currentColor" stroke-width="3"/></svg>Agent Treasury</a>
+  <nav aria-label="Sections"><a href="#problem">Problem</a><a href="#flow">How it works</a><a href="#scenarios">Scenarios</a><a href="#policy">Policy</a><a href="#run">Run it</a><a href="#video">Video</a></nav>
+</div></header>
+
+<main id="main">
+<div class="wrap" id="top">
+  <div class="hero">
+    <div>
+      <p class="status">Status: hackathon build in progress</p>
+      <h1>Payments that follow the written rules.</h1>
+      <p class="lede">Agent Treasury lets software agents pay for delivery jobs, fuel, merchants and refunds in Stripe test mode, but only when a written policy allows it, and it shows which clause and evidence decided each payment.</p>
+      <div class="btns">
+        <a class="btn primary" href="https://github.com/OWNER/agent-treasury" data-repo>View the repository</a>
+        <a class="btn" href="#run">Run it locally</a>
+      </div>
+    </div>
+    <aside class="slip" aria-label="Example decision record (illustrative)">
+      <h2>EXAMPLE DECISION RECORD (illustrative)</h2>
+      <dl>
+        <dt>action</dt><dd>release driver fee</dd>
+        <dt>clause</dt><dd>RECEIPT-1</dd>
+        <dt>evidence</dt><dd>position 412 m from destination; radius 100 m</dd>
+      </dl>
+      <div class="rule"></div>
+      <p style="margin:0">decision: <span class="verdict">DENY</span></p>
+      <p class="note">Mock-up from the design docs, not captured output. Valid receipt code, wrong place: no transfer.</p>
+    </aside>
+  </div>
+</div>
+
+<section id="problem"><div class="wrap">
+  <h2 class="sec">Agents that spend money need rules they can be checked against</h2>
+  <div class="cols">
+    <div><h3>Rules live in prose</h3><p>Fuel caps, insurance requirements and refund terms are written down, then re-implemented ad hoc wherever money moves.</p></div>
+    <div><h3>Conditions change mid-job</h3><p>A route change can invalidate a driver's cover. Pending work has to be re-planned without weakening the rule.</p></div>
+    <div><h3>Nobody can say why</h3><p>After a payment, the useful question is which policy version and which evidence allowed it. The design answers that for every operation.</p></div>
+  </div>
+</div></section>
+
+<section id="flow"><div class="wrap">
+  <h2 class="sec">From input to evidence</h2>
+  <div class="diagram">
+  <svg viewBox="0 0 960 250" role="img" aria-labelledby="dt dd">
+    <title id="dt">Flow diagram</title>
+    <desc id="dd">An input event goes to a written policy check, which produces a decision of allow, hold or deny. Only an allow leads to a Stripe test payment. Every decision produces evidence.</desc>
+    <path class="link" d="M120 90H840"/>
+    <g>
+      <rect class="node" x="20" y="55" width="200" height="70" rx="6"/><text x="120" y="86" text-anchor="middle">Input</text><text class="sub" x="120" y="106" text-anchor="middle">order, position, receipt</text>
+      <rect class="node" x="200" y="55" width="0" height="0"/>
+    </g>
+    <rect class="node" x="250" y="55" width="150" height="70" rx="6"/><text x="325" y="86" text-anchor="middle">Written policy</text><text class="sub" x="325" y="106" text-anchor="middle">clauses, versioned</text>
+    <rect class="node" x="430" y="55" width="150" height="70" rx="6"/><text x="505" y="86" text-anchor="middle">Decision</text><text class="sub" x="505" y="106" text-anchor="middle">allow / hold / deny</text>
+    <g class="pay"><rect class="node" x="610" y="55" width="150" height="70" rx="6"/><text x="685" y="86" text-anchor="middle">Stripe test payment</text><text class="sub" x="685" y="106" text-anchor="middle">allow only</text></g>
+    <rect class="node" x="790" y="55" width="150" height="70" rx="6"/><text x="865" y="86" text-anchor="middle">Evidence</text><text class="sub" x="865" y="106" text-anchor="middle">clause + record</text>
+    <circle class="pkt" cx="140" cy="90" r="7"/>
+    <g class="chip a"><rect x="400" y="165" width="70" height="30" rx="15"/><text x="435" y="185" text-anchor="middle">allow</text></g>
+    <g class="chip h"><rect x="480" y="165" width="70" height="30" rx="15"/><text x="515" y="185" text-anchor="middle">hold</text></g>
+    <g class="chip d"><rect x="560" y="165" width="70" height="30" rx="15"/><text x="595" y="185" text-anchor="middle">deny</text></g>
+    <text class="sub" x="505" y="225" text-anchor="middle">decision cycles through the three outcomes; payment node lights only on allow</text>
+  </svg>
+  </div>
+  <p class="caption">Allow leads to a Stripe test-mode call. Hold waits for approval or missing evidence. Deny stops the payment. All three are recorded with the clause that decided them. Animation is illustrative.</p>
+</div></section>
+
+<section id="scenarios"><div class="wrap">
+  <h2 class="sec">Four scenarios the demo is designed around</h2>
+  <div class="scen">
+    <article><h3>Deliver and release</h3><p>A customer test payment is collected. Early receipt outside the destination radius fails. A valid confirmation at arrival releases separate transfers to merchant and driver test accounts.</p></article>
+    <article><h3>Fuel entitlement</h3><p>An active, eligible driver buys fuel with a test Issuing card within a GBP 8 cap. Over-limit or wrong-merchant attempts are declined.</p></article>
+    <article><h3>Replan on coverage change</h3><p>A route change breaks Driver A's coverage. Dispatch and unused fuel authority are refused; the planner looks for another eligible driver or route, and never weakens the rule.</p></article>
+    <article><h3>Cancel and refund</h3><p>With no eligible driver before pickup, pending work is cancelled and the original test payment is refunded under REFUND-1.</p></article>
+  </div>
+</div></section>
+
+<section id="policy"><div class="wrap">
+  <h2 class="sec">Policy clauses</h2>
+  <p>These are illustrative, configurable demo rules from the design docs. They are not legal insurance terms or a production policy.</p>
+  <div class="tw"><table>
+    <caption>Illustrative demo clauses</caption>
+    <thead><tr><th scope="col">Clause</th><th scope="col">Rule</th><th scope="col">Enforcement and evidence</th></tr></thead>
+    <tbody>
+    <tr><td>DRIVER-1</td><td>Only an assigned, approved driver may claim a job or its fuel allowance</td><td>Assignment version and driver identity/session</td></tr>
+    <tr><td>COVER-1</td><td>Supplied coverage record must include job type, vehicle, goods value and every planned zone, and remain valid through expected completion</td><td>Versioned demo insurer record (simulated; no real insurer integration)</td></tr>
+    <tr><td>TRAVEL-1</td><td>Route must stay within the organisation's permitted zones</td><td>Route-zone intersection and current simulated position; cover never overrides a prohibited zone</td></tr>
+    <tr><td>FUEL-1</td><td>Active eligible job may receive up to GBP 8 at permitted fuel merchants; no spend while unassigned or after completion</td><td>Issuing category/country controls plus local job policy and budget reservation</td></tr>
+    <tr><td>FUEL-2</td><td>Fuel stop within 100 simulated metres of the approved route, with fresh position evidence</td><td>Map geometry and timestamp</td></tr>
+    <tr><td>RECEIPT-1</td><td>Release requires the assigned driver, fresh position inside the destination radius and a fresh one-use recipient confirmation</td><td>Assignment version, distance, receipt event ID, consumed nonce</td></tr>
+    <tr><td>PAY-1</td><td>Pay approved merchant bill and driver fee once after delivery proof passes, within limits</td><td>Original order, approved amounts, operation IDs and ledger</td></tr>
+    <tr><td>APPROVE-1</td><td>Amounts above the automatic limit need human approval for that operation</td><td>Approval bound to amount, currency, recipient and policy version</td></tr>
+    <tr><td>REFUND-1</td><td>A cancelled order before pickup is fully refunded if no recipient transfers have executed</td><td>Original test charge, order state, remaining refundable amount</td></tr>
+    </tbody></table></div>
+</div></section>
+
+<section id="stack"><div class="wrap">
+  <h2 class="sec">Planned stack</h2>
+  <ul class="stack">
+    <li><b>DBOS</b><span>Durable execution and sagas for payment workflows.</span></li>
+    <li><b>Cognee</b><span>Policy and decision memory, used for explanations.</span></li>
+    <li><b>Stripe test mode</b><span>Payments, Connect transfers, Issuing, refunds. Test keys only.</span></li>
+    <li><b>GOAP planner</b><span>Application-owned planning that replans unfinished work.</span></li>
+    <li><b>React</b><span>Map, policy and evidence console (Vite).</span></li>
+  </ul>
+  <p class="caption">Python backend managed with uv. Each piece's status is tracked in the repository's README and tests, not on this page.</p>
+</div></section>
+
+<section id="run"><div class="wrap">
+  <h2 class="sec">Run it</h2>
+  <p>Requires <a href="https://docs.astral.sh/uv/">uv</a>, Node.js and a Stripe test-mode key if you want real test calls. Check the README for current status and exact environment variables.</p>
+<pre><code>git clone https://github.com/OWNER/agent-treasury
+cd agent-treasury
+cp .env.example .env     # add Stripe TEST keys only
+uv sync
+uv run pytest            # unit tests
+cd frontend &amp;&amp; npm install &amp;&amp; npm run dev</code></pre>
+</div></section>
+
+<section id="video"><div class="wrap">
+  <h2 class="sec">Demo video</h2>
+  <div class="video" role="note"><p style="margin:0 auto"><strong>TODO:</strong> demo video (2 minutes or less) not recorded yet. This is a placeholder, not a player.</p></div>
+</div></section>
+
+<section id="honest"><div class="wrap">
+  <h2 class="sec">What this is and is not</h2>
+  <ul class="honest">
+    <li>Stripe test mode only. No live keys, no real funds.</li>
+    <li>Map positions, insurance records, merchant events and receipt confirmations are simulated.</li>
+    <li>The build is in progress; the README and tests are the source of truth for what works.</li>
+    <li>Independent hackathon entry. Not affiliated with or endorsed by Stripe or Briefcase.</li>
+    <li>No benchmarks, users or customer claims.</li>
+  </ul>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <p>Built for the <a href="https://hackathons.briefcase.so/stripe-october-2026/">Briefcase x Stripe hackathon</a>. <a href="https://github.com/OWNER/agent-treasury" data-repo>Source on GitHub</a>. MIT licence.</p>
+</div></footer>
+</body>
+</html>

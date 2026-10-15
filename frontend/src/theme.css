@@ -1,0 +1,66 @@
+/* Design tokens. Palette: Ledger ink (text), Vault blue (brand/focus), Release green, Hold amber, Stop red. */
+:root {
+  --canvas: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #f5f7fb;
+  --ink: #101a2b;
+  --ink-2: #44536a;
+  --line: #d3dbe6;
+  --line-strong: #aab6c8;
+  --brand: #1b4fd1;
+  --brand-ink: #ffffff;
+  --allow: #0a6e43;
+  --hold: #8f5200;
+  --deny: #b42318;
+  --allow-tint: #e3f4ec;
+  --hold-tint: #fbf0dc;
+  --deny-tint: #fbe7e5;
+  --brand-tint: #e6edfc;
+  --scrim: rgba(10, 16, 28, 0.5);
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* type scale (1.2 ratio, 16px base) */
+  --t-xs: 0.78rem;
+  --t-sm: 0.875rem;
+  --t-md: 1rem;
+  --t-lg: 1.2rem;
+  --t-xl: 1.5rem;
+  --t-2xl: 1.95rem;
+  --space: 8px;
+  --radius: 6px;
+  color-scheme: light dark;
+  /* legacy names used by older components */
+  --bg: var(--canvas);
+  --fg: var(--ink);
+  --panel: var(--surface);
+  --accent: var(--brand);
+  --muted: var(--ink-2);
+  --mock: var(--hold);
+  --ok-bg: var(--allow-tint);
+  --bad-bg: var(--deny-tint);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --canvas: #0a101c;
+    --surface: #121a2a;
+    --surface-2: #182236;
+    --ink: #e7ecf5;
+    --ink-2: #a3b0c6;
+    --line: #27334a;
+    --line-strong: #44546f;
+    --brand: #8aa8ff;
+    --brand-ink: #0a101c;
+    --allow: #4ed08f;
+    --hold: #f2b84b;
+    --deny: #ff8d83;
+    --allow-tint: #0f2a21;
+    --hold-tint: #2b2210;
+    --deny-tint: #35171a;
+    --brand-tint: #16264a;
+    --scrim: rgba(0, 0, 0, 0.62);
+  }
+}
+:root { --map-bg: #f1f4f9; --map-ok: #cfe8d5; --map-no: #f3c9c9; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) { --map-bg: #182236; --map-ok: #1c4a37; --map-no: #5a2630; }
+}

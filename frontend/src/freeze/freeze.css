@@ -1,0 +1,7 @@
+.fz{position:relative}
+.fz-btn{border:1px solid var(--deny,#b42318);color:var(--deny,#b42318);font-weight:600}
+.fz-btn.fz-on{background:var(--deny,#b42318);color:#fff}
+.fz-pop{position:absolute;right:0;top:100%;z-index:20;width:min(320px,90vw);padding:12px;margin-top:6px;border:1px solid var(--line,#ccc);border-radius:8px;background:var(--bg,#fff);color:inherit;display:grid;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.fz-actions{display:flex;gap:8px;flex-wrap:wrap}
+.fz-err{color:var(--deny,#b42318)}
+.fz-banner{padding:10px 16px;background:var(--deny,#b42318);color:#fff;font-size:var(--t-sm)}

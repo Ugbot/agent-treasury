@@ -1,122 +1,90 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useMemo, useState } from 'react'
+import { clientFromEnv } from './api'
+import type { TreasuryClient } from './api'
+import { JourneyView, journeyClientFromEnv } from './journey'
+import { AuditLogView, auditClientFromEnv, createAuditFixtureClient } from './audit'
+import type { AuditClient } from './audit'
+import { createHttpChatTransport, unavailableTransport } from './chat'
+import { ModeBadge } from './components/ModeBadge'
+import { PoliciesView, createPoliciesFixtureClient } from './policies'
+import { AuthorView } from './author'
+import { PaymentHistory, createHistoryFixtureClient, createHistoryHttpClient } from './history'
+import { createScenariosFixtureClient, createScenariosHttpClient } from './scenarios'
+import type { ScenariosClient } from './scenarios'
+import { MissionControl } from './shell/MissionControl'
+import { WhyDrawer, createWhyFixtureClient, createWhyHttpClient } from './why'
+import type { WhyClient } from './why'
+import { FreezeControl, useFreeze, freezeClientFromEnv } from './freeze'
+import { useTreasury } from './useTreasury'
+import { DemoMode } from './demo'
 
-function App() {
-  const [count, setCount] = useState(0)
+type View = 'mission' | 'log' | 'policies' | 'history' | 'journey' | 'author'
+const VIEWS: [View, string][] = [['mission', 'Mission control'], ['log', 'Everything log'], ['policies', 'Policies'], ['author', 'Write policy'], ['history', 'History']]
 
+export default function App({ client, audit, why, scenarios }: { client?: TreasuryClient; audit?: AuditClient; why?: WhyClient; scenarios?: ScenariosClient }) {
+  const c = useMemo(() => client ?? clientFromEnv(), [client])
+  const t = useTreasury(c)
+  const pc = useMemo(() => (c.kind === 'fixture' ? createPoliciesFixtureClient() : undefined), [c])
+  const s = t.snapshot
+  const [view, setView] = useState<View>('mission')
+  const fixture = c.kind === 'fixture'
+  const auditClient = useMemo(() => audit ?? (fixture ? createAuditFixtureClient() : auditClientFromEnv('http')), [audit, fixture])
+  const whyClient = useMemo(() => why ?? (fixture ? createWhyFixtureClient() : createWhyHttpClient()), [why, fixture])
+  const scnClient = useMemo(() => scenarios ?? (fixture ? createScenariosFixtureClient() : createScenariosHttpClient()), [scenarios, fixture])
+  const histClient = useMemo(() => (fixture ? createHistoryFixtureClient() : createHistoryHttpClient()), [fixture])
+  const freezeClient = useMemo(() => freezeClientFromEnv(fixture), [fixture])
+  const fz = useFreeze(freezeClient)
+  const jClient = useMemo(() => journeyClientFromEnv(), [])
+  const [histId, setHistId] = useState<string | null>(null)
+  const openHistory = useCallback((id: string) => { setHistId(id); setWhyId(null); setView('history') }, [])
+  const [whyId, setWhyId] = useState<string | null>(null)
+  const [hlSeq, setHlSeq] = useState<number | null>(null)
+  const openAudit = useCallback((seq: number) => { setHlSeq(seq); setWhyId(null); setView('log') }, [])
+  const closeWhy = useCallback(() => setWhyId(null), [])
+  const chatTransport = useMemo(() => (c.kind === 'fixture' ? unavailableTransport : createHttpChatTransport()), [c])
+  const demoHost = useMemo(() => ({
+    setView: (v: 'policies' | 'mission') => setView(v),
+    openWhy: (id: string) => setWhyId(id),
+    closeWhy: () => setWhyId(null),
+    fallbackPaymentId: () => s?.operation?.operationId ?? null,
+  }), [s?.operation?.operationId])
+  const onRecord = useCallback((on: boolean) => document.body.classList.toggle('demo-recording', on), [])
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+      <a className="skip" href="#main">Skip to content</a>
+      <header className="top">
+        <div className="brand">
+          <h1>Agent Treasury</h1>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+        <nav aria-label="Views" className="views" ref={(el) => { if (el) el.scrollLeft = 0 }}>
+          <button type="button" aria-pressed={view === 'journey'} onClick={() => setView('journey')}>New job</button>
+          {VIEWS.map(([id, label]) => (
+            <button key={id} type="button" aria-pressed={view === id} onClick={() => setView(id)}>{label}</button>
+          ))}
+        </nav>
+        <div className="top-meta">
+          {s && <span className="mission-id">Mission {s.missionId}</span>}
+          {s && <ModeBadge mode={s.mode} />}
+          {fixture && <span className="banner" role="note">Fixture mode: canned data, no backend</span>}
+          <DemoMode host={demoHost} fixture={fixture} onRecord={onRecord} />
+          <FreezeControl state={fz.state} error={fz.error} onSet={fz.set} />
+          <button type="button" className="quiet" onClick={() => void t.refresh()} disabled={t.loading || t.pending}>Refresh state</button>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      </header>
+      {t.error && <div role="alert" className="error">{t.error}</div>}
+      {view === 'policies' && <div className="page"><PoliciesView client={pc} missionId={s?.missionId} /></div>}
+      {view === 'author' && <div className="page"><AuthorView onOpenPolicies={() => setView('policies')} /></div>}
+      {view === 'log' && (
+        <div className="page">
+          <AuditLogView client={auditClient} highlightSeq={hlSeq} onWhy={(id) => setWhyId(id)} />
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      )}
+      {view === 'journey' && <div className="page"><JourneyView client={jClient} onExit={() => setView('mission')} /></div>}
+      {view === 'history' && <PaymentHistory client={histClient} paymentId={histId ?? s?.missionId ?? ''} />}
+      {whyId && <WhyDrawer client={whyClient} paymentId={whyId} onClose={closeWhy} onOpenAudit={openAudit} onOpenHistory={openHistory} />}
+      <div hidden={view !== 'mission'}>
+        <MissionControl freeze={fz.state} t={t} scenarios={scnClient} audit={auditClient} chat={chatTransport} onWhy={setWhyId} onAudit={openAudit} />
+      </div>
     </>
   )
 }
-
-export default App

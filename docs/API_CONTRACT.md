@@ -144,3 +144,20 @@ Every event, operation and receipt carries a `mode` the UI must show distinctly:
 - `stripe_test`: Stripe test-mode object (`livemode: false`). Live keys and `livemode: true` objects are rejected by the backend and must never render as success.
 
 Event feed items additionally carry `source: 'simulation' | 'provider'` so simulator inputs are never confused with provider-confirmed events.
+
+## Audit, scenarios, agent and explanation routes (stream E consumers)
+
+The frontend tolerates either the `{data}` envelope or a bare body, and snake_case or camelCase fields; it never invents fields. Anything a route does not return is shown as "not reported", never filled in. Entries are the rows of `audit_log` (`src/treasury/audit.py`): `{seq, ts, actor, party, mission_id, kind, summary, payload, policy, stripe, mode, prev_hash, hash}`.
+
+| Endpoint | Result |
+|---|---|
+| GET /api/audit?mission=&party=&kind=&actor=&after=&limit= | Ordered entries after `seq`. `?format=ndjson` is the export link. |
+| GET /api/audit/party/{party}?after= | Role-scoped entries for `sender`, `receiver` or `driver`. The server enforces scope; the UI never filters other parties' data client-side for these views. |
+| GET /api/audit/stream?party=&mission=&after= | SSE. Each frame (default `message` or `audit` event) is one entry or an array of entries as JSON. On error the UI closes it and polls the list/party endpoint every 1s with `after=<last seq>`. |
+| GET /api/audit/verify | `{ok, entries, head}` or `{ok:false, broken_at_seq, entries}`. The UI re-verifies whenever the head seq moves. |
+| POST /api/scenarios/{id}/run | Body `{mode: 'mock'\|'stripe_test'}`. Result `{scenario, missionId, status, mode, steps:[{name,status,detail}], unavailable?}`. `unavailable` is a setup string when a capability (key, Issuing) is missing. |
+| GET /api/scenarios | `[{id,title}]`; four scenarios expected. |
+| POST /api/agent/step | Body `{missionId, agent: 'auto'\|'llm'\|'goap'}`. Result `{available, unavailable?, mode, auditSeq, proposal:{action, summary, amountMinor, currency, recipient, rationale, agent}, verdict:{verdict, executed, clauses:[{clause, outcome, evidence}], reasons[]}}`. The proposal and the policy verdict are shown side by side. |
+| GET /api/payments/{id}/explanation | Why-paid drawer: `{verdict, mode, source: 'cognee'\|'audit_log', sourceNote, text, policy:{id,version,hash}, clauses:[{policy_id, policy_version, clause, outcome, evidence}], evidence, stripe:{ids[], livemode}, auditSeqs[]}`. `source` must say where retrieval came from; the UI never labels a response Cognee unless the server does. |
+
+Party commands (sent through the existing command adapter to `POST /api/missions/{id}/events`): `confirm_receipt` (receiver), `report_position` (driver, sent as event type `position` with `{driverId, x, y, assignmentVersion}`), `cancel_requested` (sender, `{reason}`). `set_amount` carries the snapshot's policy currency (CURRENCY-1), not a constant.

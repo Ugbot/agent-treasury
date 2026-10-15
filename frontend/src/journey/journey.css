@@ -1,0 +1,26 @@
+.journey{display:grid;gap:16px;max-width:1100px;margin:0 auto;padding:20px}
+.journey-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.journey-steps{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0;counter-reset:s}
+.journey-steps li{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-2);font-size:var(--t-sm)}
+.journey-steps li::before{counter-increment:s;content:counter(s);display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid currentColor;font-family:var(--font-mono);font-size:var(--t-xs)}
+.journey-steps li[aria-current=step]{color:var(--brand);border-color:var(--brand);background:var(--brand-tint);font-weight:600}
+.journey-steps li.done{color:var(--allow)}
+.jpanel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:grid;gap:12px}
+.jgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.jgrid input,.jgrid select{width:100%}
+.jtwo{display:grid;gap:16px;grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+@media (max-width:760px){.jtwo{grid-template-columns:1fr}}
+.jlib{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.jlib li{display:grid;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.jlib .jrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.jrules{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.jrules li{border-left:3px solid var(--line-strong);padding:4px 10px}
+.jrules li.org{border-left-color:var(--brand)}
+.jrules code{color:var(--ink-2)}
+.jtable{width:100%;border-collapse:collapse;font-size:var(--t-sm)}
+.jtable th,.jtable td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.jactions{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+.jnarr{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.jnarr li{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-2)}
+.jnarr .t{flex:1 1 280px}
+.jfield-err{color:var(--deny);font-size:var(--t-xs)}
