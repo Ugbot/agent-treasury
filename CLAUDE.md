@@ -78,3 +78,7 @@ Planned (not implemented yet; mark as such in docs and UI):
 ## Testing expectations
 - Every policy rule has allow, hold and deny boundary tests; every external effect has duplicate, retry, crash-between-effect-and-checkpoint, and unknown-outcome tests.
 - Negative checks that must keep passing: a client cannot clear a deny by resending inputs; strings like `"false"` do not satisfy inputs; lowering an amount does not bypass `APPROVE-1`; an attached stricter policy flips allow to hold; a replayed receipt nonce is rejected; a duplicate event creates one payment.
+
+## Status: freeze-day additions
+- Added clause kinds allowed_counterparties, velocity_limit, payment_freeze; /api/freeze (org-freeze mandatory policy); /api/audit/pack; Demo mode UI. Backend tests, ruff, frontend tests and build green. Verified live on mock: four scenarios complete, freeze holds a payment, unfreeze works, pack zip downloads with 6 files.
+- Known gaps: decisions.json/policies.json in the pack were empty ([]) for a deliver_and_release mission in the live check; UI freeze/demo/pack flows not exercised in a browser; velocity not applied to fuel authorisations.

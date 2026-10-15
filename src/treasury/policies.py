@@ -1,10 +1,10 @@
 """Versioned policy bundles, attachments and restrictive effective-policy decisions."""
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import itertools
 import json
-import contextvars
 import threading
 from dataclasses import dataclass
 

@@ -71,6 +71,12 @@ class JobIn(BaseModel):
 # ---- policy templates (existing clause kinds only) --------------------------------------------
 
 TEMPLATES: dict[str, dict] = {
+    "tpl-approved-payees": {
+        "title": "Approved payees only",
+        "summary": "Only the listed payees and merchant categories can be paid; anyone else is denied.",
+        "clauses": [Clause("PAYEE-1", "Only pay approved payees and merchant categories",
+                           "allowed_counterparties", {"recipients": ["driver_ann"], "categories": ["fuel"]})],
+    },
     "tpl-fuel-meal": {
         "title": "Fuel and meal allowance",
         "summary": "Allowance payments above $30.00 need approval before they are released.",

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { FreezeBanner, FreezeControl, useFreeze, createFreezeFixtureClient, frozenText, createFreezeHttpClient } from './index'
@@ -5,7 +6,8 @@ import { clauseSentence } from '../policies/clauses'
 import { StatusHeadline } from '../shell/StatusHeadline'
 
 function Harness() {
-  const f = useFreeze(createFreezeFixtureClient())
+  const fc = useMemo(() => createFreezeFixtureClient(), [])
+  const f = useFreeze(fc)
   return <><FreezeControl state={f.state} error={f.error} onSet={f.set} /><FreezeBanner state={f.state} /></>
 }
 
@@ -27,7 +29,8 @@ describe('freeze flow', () => {
     const b = await screen.findByTestId('freeze-banner')
     expect(b.textContent).toContain('Payments are frozen by approver since')
     expect(b.textContent).toContain('every payment is held')
-    fireEvent.click(screen.getByRole('button', { name: 'Unfreeze payments' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    fireEvent.click(await screen.findByRole('button', { name: 'Unfreeze payments' }))
     fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: 'resolved' } })
     fireEvent.click(screen.getByRole('button', { name: /Confirm/ }))
     await waitFor(() => expect(screen.queryByTestId('freeze-banner')).toBeNull())

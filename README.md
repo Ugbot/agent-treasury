@@ -44,7 +44,7 @@ Rules enforced in code and covered by `tests/test_policies.py`:
 - Attach/detach use expected-version checks (HTTP 409 on conflict) and a target that is no longer pending is locked.
 - Decisions are immutable records; replaying the same inputs and attachments returns the same record.
 
-Other clause IDs from the scenarios, with the code that evaluates them: DRIVER-1, COVER-1 and TRAVEL-1 (planner, `planner.py`), FUEL-1/FUEL-2 (`fuel.py`), RECEIPT-1 and PAY-1 gates (`proof.py`), REFUND-1 and MONEY-1 (`refunds.py`). The policy engine supports three clause kinds today: `max_amount`, `require_input`, `forbid_input`. Richer geofence and coverage evaluation lives in the planner, fuel and proof modules rather than in the generic engine.
+Other clause IDs from the scenarios, with the code that evaluates them: DRIVER-1, COVER-1 and TRAVEL-1 (planner, `planner.py`), FUEL-1/FUEL-2 (`fuel.py`), RECEIPT-1 and PAY-1 gates (`proof.py`), REFUND-1 and MONEY-1 (`refunds.py`). The policy engine supports six clause kinds: `max_amount`, `require_input`, `forbid_input`, `allowed_counterparties` (payee and merchant-category allow-list; unlisted denies, missing holds), `velocity_limit` (max payments per trailing window; over holds) and `payment_freeze` (holds every payment; unfreeze only via `POST /api/freeze` by an approver, audit-logged). Also: `GET /api/audit/pack?mission=<id>` (admin/approver) downloads a zip of report, audit log, decisions, policies and chain proof; the UI has Freeze, Download audit pack and Demo mode controls. Richer geofence and coverage evaluation lives in the planner, fuel and proof modules rather than in the generic engine.
 
 ## Four scenarios
 
@@ -95,7 +95,7 @@ flowchart LR
 Requires [uv](https://docs.astral.sh/uv/), Node.js and, optionally, the [Stripe CLI](https://docs.stripe.com/stripe-cli).
 
 ```bash
-git clone https://github.com/OWNER/agent-treasury.git   # replace OWNER once the repo is published
+git clone https://github.com/Ugbot/agent-treasury.git
 cd agent-treasury
 
 # Backend

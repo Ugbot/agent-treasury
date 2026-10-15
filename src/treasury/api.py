@@ -15,10 +15,12 @@ from . import (
     routes_chat,
     routes_delivery,
     routes_explain,
+    routes_freeze,
     routes_fuel,
     routes_history,
     routes_invoices,
     routes_jobs,
+    routes_pack,
     routes_policies,
     routes_refunds,
     workflows,
@@ -94,6 +96,7 @@ def create_app(ledger: Ledger | None = None, gateway=None, use_workflows: bool |
         routes_policies.set_registry(registry)
     elif hasattr(registry.memory, "attach_audit"):
         registry.memory.attach_audit(led.audit)
+    routes_freeze.seed_freeze(registry)
     bitemporal.replay_registry(registry, led.audit)
     bitemporal.instrument_registry(registry, led.audit)
     configure_services(gw, db=led.db, audit=led.audit)
@@ -216,7 +219,8 @@ def create_app(ledger: Ledger | None = None, gateway=None, use_workflows: bool |
         return decide(mission_id)
 
     routers = [routes_jobs.router, routes_audit.router, routes_agent.router, routes_explain.router, routes_chat.router, routes_delivery.router, routes_fuel.router, routes_invoices.router,
-               routes_policies.router, routes_refunds.router, routes_history.router, routes_author.router]
+               routes_policies.router, routes_refunds.router, routes_history.router, routes_author.router,
+               routes_freeze.router, routes_pack.router]
     if durable:
         routers.append(workflows.router)
     api = APIRouter(prefix="/api")

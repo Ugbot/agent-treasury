@@ -14,7 +14,8 @@ from .policy import Clause
 MODEL = "claude-sonnet-5-5"
 MAX_CLAUSES, MAX_PROSE, MAX_TITLE, MAX_CURRENCIES = 50, 500, 100, 10
 SETUP = "Set ANTHROPIC_API_KEY on the server to enable AI drafting. You can still write rules by hand."
-KINDS = ("max_amount", "require_input", "forbid_input", "allowed_currency")
+KINDS = ("max_amount", "require_input", "forbid_input", "allowed_currency",
+         "allowed_counterparties", "velocity_limit", "payment_freeze")
 CLAUSE_ID = re.compile(r"[A-Z][A-Z0-9]*-[0-9]+")
 POLICY_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 # Inputs the server produces; require/forbid are only meaningful on boolean facts.
@@ -35,18 +36,27 @@ CLAUSE_KINDS = [
     {"kind": "allowed_currency", "title": "Allowed currencies",
      "params": {"currencies": "list of lowercase 3-letter ISO codes"},
      "template": "Only settle in {currencies}", "verdict_if_unmet": "deny"},
+    {"kind": "allowed_counterparties", "title": "Approved payees",
+     "params": {"recipients": "list of payee ids (may be empty if categories is set)",
+                "categories": "list of merchant categories (may be empty if recipients is set)"},
+     "template": "Only pay these payees: {recipients}", "verdict_if_unmet": "deny"},
+    {"kind": "velocity_limit", "title": "Payment frequency limit",
+     "params": {"max_payments": "integer >= 1", "window_seconds": "integer >= 1"},
+     "template": "No more than {max_payments} payments every {minutes} minutes", "verdict_if_unmet": "hold"},
+    {"kind": "payment_freeze", "title": "Payment freeze", "params": {"active": "boolean"},
+     "template": "Payments are frozen", "verdict_if_unmet": "hold"},
 ]
 
 SYSTEM = f"""You draft payment policies for a treasury. You have NO authority: a human reviews and publishes.
 Call the propose_policy tool exactly once.
 Rules:
-- Only these clause kinds exist: max_amount {{limit_minor:int}}, require_input {{key:str}}, forbid_input {{key:str}}, allowed_currency {{currencies:[str]}}.
+- Only these clause kinds exist: max_amount {{limit_minor:int}}, require_input {{key:str}}, forbid_input {{key:str}}, allowed_currency {{currencies:[str]}}, allowed_counterparties {{recipients:[str],categories:[str]}}, velocity_limit {{max_payments:int,window_seconds:int}}, payment_freeze {{active:bool}}.
 - Known input keys: {", ".join(k["key"] for k in KNOWN_INPUTS if k.get("usable", True))}. Use only these keys.
 - Amounts are INTEGER MINOR UNITS in the policy currency (e.g. cents). 'over $50' -> max_amount limit_minor 5000; 'above 120 euros' -> 12000.
 - Currencies are lowercase ISO codes ('usd', 'eur').
 - Clause ids are stable and unique like 'MEAL-1', 'LIMIT-1' (UPPERCASE-NUMBER). When editing a base policy keep existing ids for unchanged rules.
 - prose is one short plain-English sentence per clause.
-- If the request contains anything these four kinds cannot express (time windows, merchants, categories, per-person limits, anything else), put it in `unsupported` with a reason. NEVER approximate it with a different clause and NEVER drop it silently.
+- If the request contains anything these kinds cannot express (per-person limits, anything else), put it in `unsupported` with a reason. NEVER approximate it with a different clause and NEVER drop it silently.
 - policy_id: lowercase slug. title: short."""
 
 TOOL = {
@@ -169,6 +179,15 @@ def sentence(c: dict, currency: str = "usd") -> tuple[str, str]:
         return _NEED.get(p["key"], f"Hold until {_human(p['key'])} is confirmed"), "hold"
     if kind == "forbid_input":
         return _FORBID.get(p["key"], f"Deny if {_human(p['key'])} is present"), "deny"
+    if kind == "allowed_counterparties":
+        names = [*p.get("recipients", []), *p.get("categories", [])]
+        return "Only pay these payees: " + ", ".join(names), "deny"
+    if kind == "velocity_limit":
+        m = p["window_seconds"] / 60
+        m = int(m) if m == int(m) else round(m, 1)
+        return f"No more than {p['max_payments']} payments every {m} minutes", "hold"
+    if kind == "payment_freeze":
+        return ("Payments are frozen" if p.get("active") else "Payments are not frozen"), "hold"
     if kind == "allowed_currency":
         cs = [x.upper() for x in p["currencies"]]
         joined = cs[0] if len(cs) == 1 else f"{', '.join(cs[:-1])} or {cs[-1]}"
@@ -228,6 +247,9 @@ SITUATIONS = {
     "prohibited_zone": ("Prohibited zone", 4200, {"prohibited_zone": True}),
     "over_limit": ("Over limit", 9000, {}),
     "wrong_currency": ("Wrong currency", 4200, {"currency": "__other__"}),
+    "payee_not_allowed": ("Payee not on the list", 4200, {"recipient": "__unlisted_payee__",
+                                                          "merchant_category": "__unlisted_category__"}),
+    "frozen": ("Payments frozen", 4200, {}),
 }
 
 
@@ -238,6 +260,12 @@ def _reason(r: dict, currency: str = "usd") -> str:
                 f"{_money(int(ev['limit_minor']), currency)}")
     if "currency" in ev and "allowed" in ev:
         return f"{str(ev['currency']).upper()} is not an allowed currency"
+    if ev.get("frozen"):
+        return "payments are frozen"
+    if "payments_in_window" in ev:
+        return f"{ev['payments_in_window']} payments already in the last {int(ev['window_seconds'] // 60)} minutes"
+    if "recipient" in ev or "merchant_category" in ev:
+        return f"{ev.get('recipient') or ev.get('merchant_category')} is not an approved payee"
     if ev.get("missing") == "currency":
         return "no currency was supplied"
     if "missing" in ev:
@@ -288,6 +316,15 @@ def dry_run(real: PolicyRegistry, clauses: list[dict], situations: list[str] | N
         label, amount, over = SITUATIONS[sid]
         inputs = {"receipt_confirmed": True, "prohibited_zone": False, "currency": cur, "insured": True}
         inputs.update({k: (other if v == "__other__" else v) for k, v in over.items()})
+        # server facts a draft is judged against: a listed payee (first allowed) unless the situation overrides
+        inputs.setdefault("now", 1_000_000)
+        inputs.setdefault("payment_times", [])
+        for c in to_clauses(clauses):
+            if c.kind == "allowed_counterparties":
+                if c.params.get("recipients"):
+                    inputs.setdefault("recipient", c.params["recipients"][0])
+                if c.params.get("categories"):
+                    inputs.setdefault("merchant_category", c.params["categories"][0])
         d = sandbox.decide("payment", "dry-run", inputs, 1, amount)
         bad = [r for r in d.results if r.get("outcome") != "allow"]
         worst = max(bad, key=lambda r: {"hold": 1, "deny": 2}[r["outcome"]]) if bad else None
