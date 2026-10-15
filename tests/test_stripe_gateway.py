@@ -128,6 +128,8 @@ class _Fake:
             return Res(fn)
 
         self.accounts = Res(accounts_fn)
+        self.v2_request = lambda method, path, body=None, preview=False: {
+            "data": [{"id": "fa_1", "status": "open"}]}
         self.payment_intents = rec("pi", status="succeeded", amount=100, currency="usd")
         self.refunds = rec("re", status="succeeded", amount=100, currency="usd")
         self.transfers = rec("tr", amount=100, currency="usd", reversed=False)

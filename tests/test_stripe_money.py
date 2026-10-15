@@ -55,6 +55,24 @@ class FakeStripe(Node):
         return [c[0] for c in self.calls]
 
 
+def v2_handler(caps="active", open_fa=True, due=()):
+    """Fake /v2 endpoints: recipient accounts and financial accounts."""
+    def h(a, k):
+        method, path, body = a[0], a[1], a[2]
+        if "financial_accounts" in path:
+            return {"data": [{"id": "fa_1", "status": "open" if open_fa else "pending"}]}
+        if method == "POST":
+            role = body["metadata"]["treasury_role"]
+            aid = f"acct_{role}"
+        else:
+            aid = path.split("/v2/core/accounts/")[1].split("?")[0]
+        return {"id": aid, "livemode": False, "identity": {"country": "US"},
+                "configuration": {"recipient": {"capabilities": {"stripe_balance": {
+                    "stripe_transfers": {"status": caps}}}}},
+                "requirements": {"entries": [{"description": d} for d in due]}}
+    return h
+
+
 def gw_with(responses=None):
     db = sqlite3.connect(":memory:", check_same_thread=False)
     db.row_factory = sqlite3.Row
@@ -69,6 +87,7 @@ def test_dotenv_loads_without_overriding_and_merges_state(tmp_path, monkeypatch)
     env.write_text("TREASURY_TEST_A=from_file\nTREASURY_TEST_B=from_file\n")
     st = tmp_path / "state.json"
     st.write_text(json.dumps({"connect_account_a": "acct_A", "connect_account_b": "acct_B"}))
+    monkeypatch.setattr(settings, "STATE_FILE", tmp_path / "none.json")
     monkeypatch.setenv("TREASURY_TEST_B", "from_env")
     monkeypatch.delenv("TREASURY_TEST_A", raising=False)
     monkeypatch.delenv("STRIPE_CONNECT_ACCOUNT_A", raising=False)
@@ -131,6 +150,7 @@ def test_failures_unknowns_and_livemode_are_audited():
         "refunds.create": stripe.InvalidRequestError(f"bad {KEY}", "p"),
         "transfers.create": stripe.APIConnectionError("timeout"),
         "payment_intents.create": {"id": "pi_live", "livemode": True},
+        "v2_request": v2_handler(),
         "issuing.cards.create": stripe.PermissionError("Issuing is not enabled")})
     with pytest.raises(GatewayError):
         gw.refund("r1", "pi_1")
@@ -333,30 +353,24 @@ def test_bootstrap_refuses_missing_and_live_keys(monkeypatch, capsys):
 def test_bootstrap_creates_everything_and_is_idempotent(tmp_path):
     b = load_script()
     responses = {
-        "accounts.create": lambda a, k: {"id": f"acct_{k['params']['metadata']['treasury_role']}",
-                                         "livemode": False, "capabilities": {"transfers": "active"}},
-        "accounts.retrieve": lambda a, k: {"id": a[0], "livemode": False,
-                                           "capabilities": {"transfers": "active"}},
+        "v2_request": v2_handler(),
         "issuing.cards.create": {"id": "ic_1", "last4": "4242"},
         "issuing.cardholders.create": {"id": "ich_1"},
-        "topups.create": {"id": "tu_1", "status": "succeeded", "destination_balance": "issuing"},
+        "topups.create": {"id": "tu_1", "status": "succeeded"},
     }
     gw, fake, audit, _ = gw_with(responses)
     sp = tmp_path / "state.json"
     rep = b.Report()
     state = b.bootstrap(gw, {}, rep, wait_s=0, state_path=sp)
-    assert not rep.blocked
     assert state["connect_account_a"] == "acct_merchant" and state["connect_account_b"] == "acct_driver"
-    assert state["issuing_card"] == "ic_1" and state["issuing_topup"] == "tu_1"
-    topup = next(c for c in fake.calls if c[0] == "topups.create")[2]["params"]
-    assert topup["destination_balance"] == "issuing" and topup["currency"] == "usd"
+    assert state["issuing_card"] == "ic_1"
+    card = next(c for c in fake.calls if c[0] == "issuing.cards.create")[2]["params"]
+    assert card["financial_account_v2"] == "fa_1"
     pay = next(c for c in fake.calls if c[0] == "payment_intents.create")[2]["params"]
     assert pay["payment_method"] == "pm_card_bypassPending"
-    assert json.loads(sp.read_text())["issuing_card"] == "ic_1"
     n = len(fake.calls)
     rep2 = b.Report()
     b.bootstrap(gw, json.loads(sp.read_text()), rep2, wait_s=0, state_path=sp)
-    assert not rep2.blocked
     created = [c[0] for c in fake.calls[n:] if c[0].endswith("create")]
     assert created == []  # nothing created twice
     assert any(e["stripe"]["op"] for e in audit.query(kind="stripe.call"))
@@ -364,31 +378,20 @@ def test_bootstrap_creates_everything_and_is_idempotent(tmp_path):
 
 def test_bootstrap_reports_blocked_issuing_with_setup_text(tmp_path):
     b = load_script()
-    gw, _, _, _ = gw_with({
-        "accounts.create": lambda a, k: {"id": "acct_x", "livemode": False,
-                                         "capabilities": {"transfers": "active"}},
-        "accounts.retrieve": lambda a, k: {"id": a[0], "livemode": False,
-                                           "capabilities": {"transfers": "active"}},
-        "issuing.cardholders.create": stripe.PermissionError("Issuing is not enabled"),
-        "topups.create": stripe.PermissionError("Issuing is not enabled")})
+    gw, _, _, _ = gw_with({"v2_request": v2_handler(open_fa=False)})
     rep = b.Report()
     b.bootstrap(gw, {}, rep, wait_s=0, state_path=tmp_path / "s.json")
     assert rep.blocked
     rows = {s: (st, d) for s, st, d in rep.rows}
     st, detail = rows["issuing cardholder + card"]
-    assert st == "blocked" and "Enable Issuing" in detail
+    assert st == "blocked" and "OPEN v2 financial account" in detail
     assert rows["fund platform balance"][0] == "ok"
+    assert rows["connect account (merchant)"][0] == "ok"
 
 
 def test_bootstrap_inactive_capability_is_blocked_not_ok(tmp_path):
     b = load_script()
-    gw, _, _, _ = gw_with({
-        "accounts.create": lambda a, k: {"id": "acct_p", "livemode": False,
-                                         "capabilities": {"transfers": "pending"},
-                                         "requirements": {"currently_due": ["individual.id_number"]}},
-        "accounts.retrieve": lambda a, k: {"id": a[0], "livemode": False,
-                                           "capabilities": {"transfers": "pending"},
-                                           "requirements": {"currently_due": ["individual.id_number"]}}})
+    gw, _, _, _ = gw_with({"v2_request": v2_handler(caps="restricted", due=["id_number"])})
     rep = b.Report()
     b.bootstrap(gw, {}, rep, wait_s=0, state_path=tmp_path / "s.json")
     row = next(r for r in rep.rows if r[0] == "connect account (merchant)")

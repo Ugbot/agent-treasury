@@ -35,6 +35,9 @@ from treasury.gateway import (
 
 from .currency import DEFAULT_CURRENCY
 
+V2_VERSION = "2026-09-30.endive"
+V2_PREVIEW_VERSION = "2026-09-30.preview"
+
 SETUP = {
     "payments": "Set STRIPE_SECRET_KEY to a sandbox secret key (sk_test_...) from "
                 "https://dashboard.stripe.com/test/apikeys.",
@@ -43,9 +46,10 @@ SETUP = {
                 "connected accounts with the 'transfers' capability active and fund the platform "
                 "balance (pm_card_bypassPending). Or set STRIPE_CONNECT_ACCOUNT_A / "
                 "STRIPE_CONNECT_ACCOUNT_B (acct_...) yourself.",
-    "issuing": "Enable Issuing in the sandbox Dashboard (https://dashboard.stripe.com/test/issuing/"
-               "overview), use a standard sk_test_ key, then run `uv run python "
-               "scripts/bootstrap_sandbox.py` to top up the Issuing balance (Top-ups API, US).",
+    "issuing": "Issuing needs Issuing enabled plus an OPEN v2 financial account "
+               "(https://dashboard.stripe.com/test/issuing/overview: finish financial-account "
+               "setup), funded in the Dashboard; then re-run `uv run python "
+               "scripts/bootstrap_sandbox.py`. Until then fuel falls back to the labelled MOCK.",
     "invoicing": "Invoicing is part of the base API; check the key has invoice and customer "
                  "write permissions (restricted keys: Invoices, Invoice Items, Customers).",
 }
@@ -160,10 +164,12 @@ class StripeGateway:
             import stripe
             client = stripe.StripeClient(key)
             self.key_kind = key_kind(key)
+            self._key = key
         else:
             if api_key is not None:
                 validate_test_key(api_key)
             self.key_kind = key_kind(api_key)
+        self._key = getattr(self, "_key", None)
         self.client = client
         self.audit = audit
 
@@ -296,6 +302,7 @@ class StripeGateway:
                               transfer_group=str(t.get("transfer_group") or transfer_group or ""))
 
     def issue_card(self, operation_id, cardholder_name, currency=DEFAULT_CURRENCY):
+        fa = self._issuing_financial_account()
         parts = cardholder_name.split() or ["Trip", "Driver"]
         ch = self._run("issuing", "cardholder", operation_id,
                        lambda idem: self.client.issuing.cardholders.create(
@@ -311,7 +318,7 @@ class StripeGateway:
             options={"idempotency_key": idem}), action="issuing.cardholder.create")
         card = self._run("issuing", "card", operation_id,
                          lambda idem: self.client.issuing.cards.create(
-            params={"cardholder": ch["id"], "currency": currency.lower(), "type": "virtual",
+            params={"cardholder": ch["id"], "currency": currency.lower(), "type": "virtual", "financial_account_v2": fa,
                     "status": "active", "metadata": {"operation_id": operation_id}},
             options={"idempotency_key": idem}), action="issuing.card.create")
         base = self._base(card, operation_id, 0, currency)
@@ -392,46 +399,111 @@ class StripeGateway:
         return InvoiceResult(**base, hosted_url=str(inv.get("hosted_invoice_url") or ""))
 
     # -- sandbox provisioning (used by scripts/bootstrap_sandbox.py) -----------
+    def _v2(self, method: str, path: str, body: dict | None = None, idem: str = "",
+            preview: bool = False) -> dict:
+        """Raw call to a /v2 endpoint (stripe-python v16 has no v2 accounts service).
+        The key stays inside this process; errors map to stripe exceptions for _call."""
+        import stripe
+        if self._key is None:  # injected fake client (tests): no network, no key
+            return self.client.v2_request(method, path, body, preview)
+        import httpx
+        headers = {"Authorization": f"Bearer {self._key}",
+                   "Stripe-Version": V2_PREVIEW_VERSION if preview else V2_VERSION}
+        if idem:
+            headers["Idempotency-Key"] = idem
+        try:
+            r = httpx.request(method, "https://api.stripe.com" + path, headers=headers,
+                              json=body, timeout=30)
+        except httpx.HTTPError as e:
+            raise stripe.APIConnectionError(str(e)) from e
+        data = r.json() if r.content else {}
+        if r.status_code >= 400:
+            msg = (data.get("error") or {}).get("message", f"HTTP {r.status_code}")
+            if r.status_code == 401:
+                raise stripe.AuthenticationError(msg, http_status=401)
+            if r.status_code == 403:
+                raise stripe.PermissionError(msg, http_status=403)
+            if r.status_code >= 500:
+                raise stripe.APIError(msg, http_status=r.status_code)
+            raise stripe.InvalidRequestError(msg, None, http_status=r.status_code)
+        return data
+
+    # -- sandbox provisioning (used by scripts/bootstrap_sandbox.py) -----------
     def create_connect_account(self, operation_id: str, role: str,
                                country: str = "US") -> dict:
-        """Custom account with transfers capability and Stripe's test verification data."""
-        now = int(datetime.now(UTC).timestamp())
-        acct = self._run("connect_transfers", "account", operation_id,
-                         lambda idem: self.client.accounts.create(
-            params={"type": "custom", "country": country, "email": f"{role}@example.com",
-                    "capabilities": {"transfers": {"requested": True}},
-                    "business_type": "individual",
-                    "business_profile": {"url": "https://accessible.stripe.com", "mcc": "5734"},
-                    "individual": {"first_name": role.capitalize(), "last_name": "Test",
-                                   "email": f"{role}@example.com", "phone": "0000000000",
-                                   "dob": {"day": 1, "month": 1, "year": 1901},
-                                   "ssn_last_4": "0000", "id_number": "000000000",
+        """Accounts v2: recipient configuration with stripe_balance.stripe_transfers.
+        Sandbox test data (address_full_match, ssn 0000) plus TOS + business URL make the
+        capability active; only the external account (payouts) stays outstanding."""
+        c = country.lower()
+        body = {"contact_email": f"{role}@example.com", "display_name": f"Treasury {role}",
+                "dashboard": "none",
+                "identity": {
+                    "country": c, "entity_type": "individual",
+                    "individual": {"given_name": role.capitalize(), "surname": "Test",
+                                   "email": f"{role}@example.com",
+                                   "date_of_birth": {"day": 1, "month": 1, "year": 1901},
                                    "address": {"line1": "address_full_match", "city": "San Francisco",
-                                               "state": "CA", "postal_code": "94103",
-                                               "country": country}},
-                    "external_account": {"object": "bank_account", "country": country,
-                                         "currency": DEFAULT_CURRENCY, "routing_number": "110000000",
-                                         "account_number": "000123456789"},
-                    "tos_acceptance": {"date": now, "ip": "127.0.0.1"},
-                    "metadata": {"treasury_role": role}},
-            options={"idempotency_key": idem}), action="accounts.create")
-        return acct
+                                               "state": "CA", "postal_code": "94103", "country": c},
+                                   "id_numbers": [{"type": "us_ssn_last_4", "value": "0000"}]},
+                    "attestations": {"terms_of_service": {"account": {
+                        "date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "ip": "127.0.0.1"}}}},
+                "defaults": {"responsibilities": {"fees_collector": "application",
+                                                  "losses_collector": "application"},
+                             "profile": {"business_url": "https://accessible.stripe.com"}},
+                "configuration": {"recipient": {"capabilities": {"stripe_balance": {
+                    "stripe_transfers": {"requested": True}}}}},
+                "metadata": {"treasury_role": role},
+                "include": ["configuration.recipient", "requirements", "identity"]}
+        acct = self._run("connect_transfers", "account", operation_id,
+                         lambda idem: self._v2("POST", "/v2/core/accounts", body, idem),
+                         action="v2.core.accounts.create")
+        return self._normalise_account(acct)
+
+    @staticmethod
+    def _normalise_account(a: dict) -> dict:
+        caps = (((a.get("configuration") or {}).get("recipient") or {}).get("capabilities") or {})
+        st = ((caps.get("stripe_balance") or {}).get("stripe_transfers") or {}).get("status")
+        entries = (a.get("requirements") or {}).get("entries") or []
+        return {"id": a["id"], "country": (a.get("identity") or {}).get("country"),
+                "capabilities": {"transfers": st},
+                "requirements": {"currently_due": [e.get("description") for e in entries]},
+                "livemode": a.get("livemode", False)}
 
     def retrieve_account(self, account_id: str) -> dict:
-        return self._call("connect_transfers",
-                          lambda: self.client.accounts.retrieve(account_id),
-                          action="accounts.retrieve", op=account_id)
+        a = self._call("connect_transfers", lambda: self._v2(
+            "GET", f"/v2/core/accounts/{account_id}?include=configuration.recipient"
+                   "&include=requirements"),
+            action="v2.core.accounts.retrieve", op=account_id)
+        return self._normalise_account(a)
+
+    def _issuing_financial_account(self) -> str:
+        """An OPEN v2 financial account is required to issue cards."""
+        try:
+            fas = self._call("issuing", lambda: self._v2(
+                "GET", "/v2/money_management/financial_accounts", preview=True),
+                action="v2.financial_accounts.list")
+        except GatewayError as e:
+            raise CapabilityUnavailable("issuing", f"cannot list v2 financial accounts: {e}",
+                                        SETUP["issuing"]) from e
+        for fa in fas.get("data", []):
+            if fa.get("status") == "open":
+                return fa["id"]
+        states = [f"{fa.get('id')}={fa.get('status')}" for fa in fas.get("data", [])]
+        raise CapabilityUnavailable(
+            "issuing", "Issuing cards need an OPEN v2 financial account (financial_account_v2); "
+            f"the sandbox has none open ({', '.join(states) or 'none'}) and the API cannot open "
+            "or test-fund it.", SETUP["issuing"])
 
     def topup_issuing(self, operation_id: str, amount_minor: int,
                       currency: str = DEFAULT_CURRENCY) -> dict:
-        """Fund the Issuing balance through the Top-ups API (US)."""
+        """Issuing funding now goes through a v2 financial account; test funding is not
+        available via API in this sandbox."""
         require_positive_minor(amount_minor)
-        return self._run("issuing", "topup", operation_id, lambda idem: self.client.topups.create(
-            params={"amount": amount_minor, "currency": currency.lower(),
-                    "description": "Agent Treasury sandbox Issuing funding",
-                    "statement_descriptor": "Treasury test",
-                    "destination_balance": "issuing"},
-            options={"idempotency_key": idem}), action="topups.create")
+        self._issuing_financial_account()
+        raise CapabilityUnavailable(
+            "issuing", "Funding the Issuing financial account has no sandbox API here "
+            "(Top-ups destination_balance was removed).", SETUP["issuing"])
 
 
 def new_run_id() -> str:

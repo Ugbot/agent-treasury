@@ -2,9 +2,9 @@
 
     uv run python scripts/bootstrap_sandbox.py
 
-Creates (test mode only): two Connect accounts (merchant, driver) with the transfers capability,
+Creates (test mode only): two Accounts-v2 recipient accounts (merchant, driver) with stripe_balance.stripe_transfers,
 funds the platform balance (pm_card_bypassPending), an Issuing cardholder + virtual card, and
-funds the Issuing balance through the Top-ups API (US). Ids (not secrets) go to the gitignored
+needs an open v2 financial account (else reported as blocked). Ids (not secrets) go to the gitignored
 `.treasury-state.json`; they are picked up automatically as STRIPE_CONNECT_ACCOUNT_A/B etc.
 
 Each step reports ok / blocked with the exact setup instruction; nothing is faked. Exit code 0
@@ -97,7 +97,7 @@ def bootstrap(gw: StripeGateway, state: dict, rep: Report, *, wait_s: float = 20
             acct = guarded(rep, step, lambda acct_id=acct_id: gw.retrieve_account(acct_id))
         else:
             acct = guarded(rep, step, lambda role=role: gw.create_connect_account(
-                f"bootstrap-account-{role}-v1", role))
+                f"bootstrap-account-{role}-v3", role))
         if acct is None:
             continue
         state[skey] = acct["id"]
@@ -130,7 +130,7 @@ def bootstrap(gw: StripeGateway, state: dict, rep: Report, *, wait_s: float = 20
         rep.add("issuing cardholder + card", "ok", f"{state['issuing_card']} (state file)")
     else:
         card = guarded(rep, "issuing cardholder + card",
-                       lambda: gw.issue_card("bootstrap-card-v1", "Trip Driver", cur))
+                       lambda: gw.issue_card("bootstrap-card-v3", "Trip Driver", cur))
         if card is not None:
             state["issuing_card"], state["issuing_cardholder"] = card.provider_ref, card.cardholder_ref
             write_state(state, state_path)
@@ -142,7 +142,7 @@ def bootstrap(gw: StripeGateway, state: dict, rep: Report, *, wait_s: float = 20
         rep.add("fund issuing balance", "ok", f"{state['issuing_topup']} (state file)")
     else:
         top = guarded(rep, "fund issuing balance",
-                      lambda: gw.topup_issuing("bootstrap-topup-v1", ISSUING_TOPUP_MINOR, cur))
+                      lambda: gw.topup_issuing("bootstrap-topup-v3", ISSUING_TOPUP_MINOR, cur))
         if top is not None:
             if top.get("status") in ("succeeded", "pending"):
                 state["issuing_topup"] = top["id"]
