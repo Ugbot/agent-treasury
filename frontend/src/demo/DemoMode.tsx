@@ -42,7 +42,7 @@ export function DemoMode({ host, client, fixture, onRecord, tickMs = 250 }: {
     else if (a.kind === 'run') {
       host.closeWhy(); host.setView('mission'); setNote('Running...')
       const r = await c.run(a.scenario, `${runId.current}-${s.id}`)
-      if (r.paymentId && a.scenario === 'delivery-pay') lastId.current = r.paymentId
+      if (r.paymentId && a.scenario === 'deliver_and_release') lastId.current = r.paymentId
       setNote(r.ok ? `Mode: ${r.note}` : `Could not run: ${r.note}`)
     } else if (a.kind === 'why') {
       const id = lastId.current ?? host.fallbackPaymentId()
