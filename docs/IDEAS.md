@@ -6,6 +6,10 @@
 
 Use TaskEngine to coordinate a series of payment agents, a policy worker and live replanning. Combine all four experiences: bill paying within approval limits, capped virtual-card buying, refunds or disputes, and contractor payouts. Use a new standalone open-source repository. All financial operations in the hackathon are Stripe test-mode operations.
 
+## Current direction
+
+The user selected an Uber-style delivery system with simulated movement on a website map. Travel policies determine driver insurance eligibility, fuel-card entitlements, geo-locked delivery release, merchant/driver payments and refunds. See the [delivery design draft](DELIVERY_DEMO.md) for the current proposal. The earlier launch-day packet below is retained as background exploration.
+
 ## Product proposal
 
 One finance operations console and shared budget, policy and evidence ledger. Four specialist agents propose actions; one deterministic policy worker authorises them; narrowly scoped execution workers perform the corresponding Stripe operation. TaskEngine coordinates dependencies and replans the remaining work. Cognee remembers versioned policies, vendor/customer history, approval decisions and execution evidence.

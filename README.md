@@ -1,6 +1,6 @@
 # Agent Treasury
 
-A hackathon project exploring four finance agents coordinated by TaskEngine: supplier bills, capped virtual-card buying, customer refunds and contractor payouts.
+A hackathon project exploring delivery payments governed by travel policy, coordinated by TaskEngine: merchant bills, capped fuel-card buying, customer refunds and driver payouts.
 
 **Status: research and design. There is no runnable application yet.**
 
@@ -8,6 +8,7 @@ The goal is to execute Stripe test-mode operations under a shared written policy
 
 ## Working documents
 
+- [Delivery map and policy scenarios](docs/DELIVERY_DEMO.md)
 - [Combined product idea](docs/IDEAS.md)
 - [API routes and practical boundaries](docs/API_ROUTES.md)
 - [Detailed Issuing, Treasury, SPT and MPP research](docs/research/2026-10-15-stripe-specialist-routes.md)
